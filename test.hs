@@ -3,11 +3,16 @@ import Foreign.Store
 test :: Int
 test = 13
 
-doodle storeID = do
+doodle = do
+    let storeID = Store 0
     putStrLn $ "Looking up store: " ++ show storeID
-    maybeStore <- lookupStore storeID :: IO (Maybe (Store (Int -> Int)))
+    maybeStore <- lookupStore 0 :: IO (Maybe (Store (Int -> Int)))
     case maybeStore of
         Just store -> do
             f <- readStore store
             print (f 6)
-        Nothing -> putStrLn "Couldn't find anything :*("
+        Nothing -> do
+            putStrLn "Creating a new store..."
+            s <- writeStore (Store 0) ((*2) :: Int -> Int)
+            print s
+            

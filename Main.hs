@@ -6,16 +6,11 @@ import Control.Monad.IO.Class
 import Unsafe.Coerce
 import Control.Concurrent
 import Control.Monad
-import Foreign.Store
 import SandboxPath
-
--- sandboxFlags :: String
--- sandboxFlags = "-package-db=/Users/lukexi/Projects/Thop/.cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d"
 
 main :: IO ()
 main = do
     sandboxFlags <- getSandboxFlags
-    Store storeID <- newStore ((*2) :: Int -> Int)
     (leftovers, _) <- liftIO $ parseStaticFlags [noLoc sandboxFlags]
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
         -- we have to call 'setSessionDynFlags' before doing
@@ -46,7 +41,7 @@ main = do
 
             setContext [IIModule $ moduleName $ ms_mod modSum]
 
-            act <- unsafeCoerce <$> compileExpr ("doodle " ++ show storeID)
+            act <- unsafeCoerce <$> compileExpr ("doodle")
             liftIO act
     
 
