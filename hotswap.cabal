@@ -24,6 +24,7 @@ executable hotswap
     base >=4.8 && <4.9, 
     ghc, ghc-paths, bin-package-db,
     transformers >=0.4 && <0.5,
+    directory, filepath,
     foreign-store
   -- hs-source-dirs:      
   default-language:    Haskell2010

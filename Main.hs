@@ -7,12 +7,14 @@ import Unsafe.Coerce
 import Control.Concurrent
 import Control.Monad
 import Foreign.Store
+import SandboxPath
 
-sandboxFlags :: String
-sandboxFlags = "-package-db=/Users/lukexi/Projects/Thop/.cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d"
+-- sandboxFlags :: String
+-- sandboxFlags = "-package-db=/Users/lukexi/Projects/Thop/.cabal-sandbox/x86_64-osx-ghc-7.10.1-packages.conf.d"
 
 main :: IO ()
 main = do
+    sandboxFlags <- getSandboxFlags
     Store storeID <- newStore ((*2) :: Int -> Int)
     (leftovers, _) <- liftIO $ parseStaticFlags [noLoc sandboxFlags]
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
@@ -21,12 +23,10 @@ main = do
         dflags <- getSessionDynFlags
         (dflags2, _, _) <- liftIO $ parseDynamicFlags dflags leftovers
         -- If we want to make GHC interpret our code on the fly, we
-                  -- ought to set those two flags, otherwise we
-                  -- wouldn't be able to use 'setContext' below
+        -- ought to set those two flags, otherwise we
+        -- wouldn't be able to use 'setContext' below
         setSessionDynFlags $ dflags2 { hscTarget = HscInterpreted
                                      , ghcLink   = LinkInMemory
-                                     -- , pkgDatabase = liftA2 (++) (pkgDatabase dflags) (Just sandboxPackageDB)
-                                     -- , packageFlags = [ExposePackage "foreign-store"]
                                      }
         setTargets =<< sequence [guessTarget "test.hs" Nothing]
 
@@ -38,11 +38,11 @@ main = do
             liftIO . putStrLn $ "Parsing..."
             p <- parseModule modSum
             liftIO . putStrLn $ "Typechecking..."
-            t <- typecheckModule p
-            liftIO . putStrLn $ "Desugaring..."
-            d <- desugarModule t
-            liftIO . putStrLn $ "Loading..."
-            _l <- loadModule d
+            _t <- typecheckModule p
+            -- liftIO . putStrLn $ "Desugaring..."
+            -- d <- desugarModule t
+            -- liftIO . putStrLn $ "Loading..."
+            -- _l <- loadModule d
 
             setContext [IIModule $ moduleName $ ms_mod modSum]
 
