@@ -1,5 +1,5 @@
 module HotGLFW where
-import Foreign.Store
+
 
 import qualified Graphics.UI.GLFW as GLFW
 import Control.Concurrent
@@ -8,6 +8,8 @@ import Graphics.GL
 import System.Random
 import Data.Time
 import Control.Monad
+
+import HaliveUtils
 
 import qualified Green as Green -- Try changing the green amount 
                                 -- while the program is running
@@ -34,17 +36,7 @@ main = do
 -- and then store away a persistent reference that we can grab on
 -- subsequent recompilations.
 acquireGLFW :: IO GLFW.Window
-acquireGLFW = do
-    let storeID = 0
-    putStrLn $ "Looking up store: " ++ show storeID
-    maybeStore <- lookupStore storeID :: IO (Maybe (Store GLFW.Window))
-    case maybeStore of
-        Just store -> readStore store
-        Nothing -> do
-            putStrLn "Creating GLFW..."
-            win <- setupGLFW "HotGLFW" 640 480
-            writeStore (Store storeID) win
-            return win
+acquireGLFW = reacquire 0 (setupGLFW "HotGLFW" 640 480)
 
 
 setupGLFW :: String -> Int -> Int -> IO GLFW.Window
