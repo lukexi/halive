@@ -1,4 +1,6 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase #-}
+module Halive where
+
 import DynFlags
 import GHC
 -- import Outputable
@@ -12,19 +14,16 @@ import SandboxPath
 import System.FSNotify
 import qualified Filesystem.Path as FSP
 
-main :: IO ()
-main = recompiler "glfw.hs"
-
 directoryWatcher :: IO (Chan Event)
 directoryWatcher = do
     let predicate event = case event of
             Modified path _ -> FSP.extension path == Just "hs"
             _               -> False
     eventChan <- newChan
-    forkIO $ withManager $ \manager -> do
+    _ <- forkIO $ withManager $ \manager -> do
         -- start a watching job (in the background)
         let watchDirectory = "."
-        watchTreeChan
+        _stopListening <- watchTreeChan
             manager
             watchDirectory
             predicate
@@ -34,8 +33,8 @@ directoryWatcher = do
 
     return eventChan
 
-recompiler :: String -> IO ()
-recompiler mainFileName = do
+recompiler :: FilePath -> [FilePath] -> IO ()
+recompiler mainFileName importPaths' = do
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
         
         -- Get the default dynFlags
@@ -53,6 +52,7 @@ recompiler mainFileName = do
         let dflags2 = dflags1 { hscTarget = HscInterpreted
                               , ghcLink   = LinkInMemory
                               , ghcMode   = CompManager
+                              , importPaths = importPaths'
                               } `gopt_unset` Opt_GhciSandbox
         
         -- We must set dynflags before calling initPackages or any other GHC API
@@ -80,7 +80,7 @@ recompileTargets :: Ghc ()
 recompileTargets = handleSourceError printException $ do
     graph <- depanal [] False
 
-    load LoadAllTargets
+    _success <- load LoadAllTargets
 
     -- We must parse and typecheck modules before they'll be available for usage
     forM_ graph (typecheckModule <=< parseModule)

@@ -12,8 +12,9 @@ main = do
     win <- acquireGLFW
     GLFW.setWindowTitle win "Hot Swap!"
     GLFW.pollEvents
-    -- r <- (/1000) <$> randomRIO (0,1000)
-    glClearColor 0 g 0 1
+    g <- (/1000) <$> randomRIO (0,500)
+    b <- (/1000) <$> randomRIO (0,500)
+    glClearColor 1 g b 1
     glClear GL_COLOR_BUFFER_BIT
     GLFW.swapBuffers win
 
@@ -46,4 +47,3 @@ acquireGLFW = do
             win <- setupGLFW "HotGLFW" 640 480
             writeStore (Store storeID) win
             return win
-            
