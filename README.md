@@ -18,6 +18,13 @@ and changing values in ```glfw.hs``` and ```Green.hs```.
 Creating and deleting modules in the include path should 
 work fine during a halive session.
 
+Halive also works nicely with either batch-processing or run-loop type
+programs — if the program finishes, it will be restarted on next save,
+and if it's still running, it will be killed and restarted on save.
+
+(To kill Halive during run-loop type programs, you may need to hold down Ctrl-C
+to get GHC to recognize the double-Control-C-kill sequence.)
+
 Note:
 Executables based on halive must be built with the -dynamic flag for ghc
 or else strange errors may occur when interfacing with libraries

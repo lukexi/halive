@@ -3,13 +3,14 @@ module Halive where
 
 import DynFlags
 import GHC
--- import Outputable
+import Outputable
 import Linker
 import Packages
 import GHC.Paths
 import Control.Monad.IO.Class
 import Control.Concurrent
 import Control.Monad
+import Data.IORef
 import SandboxPath
 import System.FSNotify
 import qualified Filesystem.Path as FSP
@@ -33,19 +34,41 @@ directoryWatcher = do
 
     return eventChan
 
+
+
 recompiler :: FilePath -> [FilePath] -> IO ()
 recompiler mainFileName importPaths' = withGHCSession mainFileName importPaths' $ do
     mainThreadId <- liftIO myThreadId
+
+    {-
+    Watcher:
+        Tell the main thread to recompile.
+        If the main thread isn't done yet, kill it.
+    Compiler:
+        Wait for the signal to recompile.
+        Before recompiling & running, mark that we've started,
+        and after we're done running, mark that we're done.
+    -}
+
+    mainDone  <- liftIO $ newIORef False
+    -- Start with a full MVar so we recompile right away.
+    recompile <- liftIO $ newMVar ()
 
     -- Watch for changes and recompile whenever they occur
     watcher <- liftIO directoryWatcher
     _ <- liftIO . forkIO . forever $ do
         _ <- readChan watcher
-        killThread mainThreadId
+        putMVar recompile ()
+        mainIsDone <- readIORef mainDone
+        unless mainIsDone $ killThread mainThreadId
     
     -- Start up the app
     forever $ do
+        _ <- liftIO $ takeMVar recompile
+        liftIO $ writeIORef mainDone False
         recompileTargets
+        liftIO $ writeIORef mainDone True
+        
 
 
 withGHCSession :: FilePath -> [FilePath] -> Ghc () -> IO ()
@@ -100,3 +123,14 @@ recompileTargets = handleSourceError printException $ do
     case rr of
         RunOk _ -> liftIO $ putStrLn "OK"
         _ -> liftIO $ putStrLn "Error :*("
+
+
+-- A helper from interactive-diagrams to print out GHC API values, 
+-- useful while debugging the API.
+-- | Outputs any value that can be pretty-printed using the default style
+output :: (GhcMonad m, MonadIO m) => Outputable a => a -> m ()
+output a = do
+    dfs <- getSessionDynFlags
+    let style = defaultUserStyle
+    let cntx  = initSDocContext dfs style
+    liftIO $ print $ runSDoc (ppr a) cntx
