@@ -55,7 +55,8 @@ recompiler mainFileName = do
                               , ghcMode   = CompManager
                               } `gopt_unset` Opt_GhciSandbox
         
-        packagesToLink <- setSessionDynFlags dflags2
+        -- We must set dynflags before calling initPackages or any other GHC API
+        _ <- setSessionDynFlags dflags2
 
         -- Initialize the package database
         (dflags3, _) <- liftIO $ initPackages dflags2
@@ -66,31 +67,27 @@ recompiler mainFileName = do
         -- Set the given filename as a compilation target
         setTargets =<< sequence [guessTarget mainFileName Nothing]
 
-        -- Create a recompile function to call when the file changes
-        let recompile = handleSourceError printException $ do
-                graph <- depanal [] False
-
-                load LoadAllTargets
-
-                liftIO $ linkPackages dflags3 packagesToLink
-
-                forM_ graph $ \moduleSummary -> do
-                    liftIO . putStrLn $ "Parsing..."
-                    p <- parseModule moduleSummary
-                    liftIO . putStrLn $ "Typechecking..."
-                    _t <- typecheckModule p
-                    return ()
-                
-                setContext $ map (IIModule . ms_mod_name) graph
-
-                rr <- runStmt "main" RunToCompletion
-                case rr of
-                    RunOk _ -> liftIO $ putStrLn "OK"
-                    _ -> liftIO $ putStrLn "Error :*("
         -- Start up the app
-        recompile
+        recompileTargets
         -- Watch for changes and recompile whenever they occur
         watcher <- liftIO directoryWatcher
         forever $ do
             _ <- liftIO $ readChan watcher
-            recompile
+            recompileTargets
+
+-- Recompiles the current targets
+recompileTargets :: Ghc ()
+recompileTargets = handleSourceError printException $ do
+    graph <- depanal [] False
+
+    load LoadAllTargets
+
+    -- We must parse and typecheck modules before they'll be available for usage
+    forM_ graph (typecheckModule <=< parseModule)
+    
+    setContext $ map (IIModule . ms_mod_name) graph
+
+    rr <- runStmt "main" RunToCompletion
+    case rr of
+        RunOk _ -> liftIO $ putStrLn "OK"
+        _ -> liftIO $ putStrLn "Error :*("
