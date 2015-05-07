@@ -34,7 +34,22 @@ directoryWatcher = do
     return eventChan
 
 recompiler :: FilePath -> [FilePath] -> IO ()
-recompiler mainFileName importPaths' = do
+recompiler mainFileName importPaths' = withGHCSession mainFileName importPaths' $ do
+    mainThreadId <- liftIO myThreadId
+
+    -- Watch for changes and recompile whenever they occur
+    watcher <- liftIO directoryWatcher
+    _ <- liftIO . forkIO . forever $ do
+        _ <- readChan watcher
+        killThread mainThreadId
+    
+    -- Start up the app
+    forever $ do
+        recompileTargets
+
+
+withGHCSession :: FilePath -> [FilePath] -> Ghc () -> IO ()
+withGHCSession mainFileName importPaths' action = do
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
         
         -- Get the default dynFlags
@@ -67,13 +82,7 @@ recompiler mainFileName importPaths' = do
         -- Set the given filename as a compilation target
         setTargets =<< sequence [guessTarget mainFileName Nothing]
 
-        -- Start up the app
-        recompileTargets
-        -- Watch for changes and recompile whenever they occur
-        watcher <- liftIO directoryWatcher
-        forever $ do
-            _ <- liftIO $ readChan watcher
-            recompileTargets
+        action
 
 -- Recompiles the current targets
 recompileTargets :: Ghc ()

@@ -7,16 +7,19 @@ import Graphics.GL
 
 import System.Random
 import Green
+import Control.Monad
 
 main = do
+    -- error "DANG!"
     win <- acquireGLFW
     GLFW.setWindowTitle win "Hot Swap!"
-    GLFW.pollEvents
-    g <- (/1000) <$> randomRIO (0,500)
-    b <- (/1000) <$> randomRIO (0,500)
-    glClearColor 1 g b 1
-    glClear GL_COLOR_BUFFER_BIT
-    GLFW.swapBuffers win
+    forever $ do
+        GLFW.pollEvents
+        g <- (/1000) <$> randomRIO (0,500)
+        b <- (/1000) <$> randomRIO (0,500)
+        glClearColor 1 g b 1
+        glClear GL_COLOR_BUFFER_BIT
+        GLFW.swapBuffers win
 
 setupGLFW :: String -> Int -> Int -> IO GLFW.Window
 setupGLFW windowName desiredW desiredH = do

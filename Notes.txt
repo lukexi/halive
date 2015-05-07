@@ -1,3 +1,6 @@
+https://wiki.haskell.org/GHC/As_a_library
+
 https://parenz.wordpress.com/2013/08/17/ghc-api-interpreted-compiled-and-package-modules/
 https://parenz.wordpress.com/2013/07/29/ghc-packagedb/
 
+http://stackoverflow.com/questions/24999636/is-there-a-way-to-kill-all-forked-threads-in-a-ghci-session-without-restarting-i
