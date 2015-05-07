@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-module HaliveUtils where
+module Halive.Utils where
 import Foreign.Store
 import Data.Word
 
