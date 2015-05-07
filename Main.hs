@@ -11,16 +11,15 @@ import Control.Monad
 import SandboxPath
 import System.FSNotify
 import qualified Filesystem.Path as FSP
-import Data.String
 
 main :: IO ()
 -- main = recompiler "test.hs" "Test" "doodle"
 main = recompiler "glfw.hs" "HotGLFW" "go"
 
-watcherForFiles :: [FSP.FilePath] -> IO (Chan Event)
-watcherForFiles watchedFiles = do
+directoryWatcher :: IO (Chan Event)
+directoryWatcher = do
     let predicate event = case event of
-            Modified path _ -> FSP.filename path `elem` watchedFiles
+            Modified path _ -> FSP.extension path == Just "hs"
             _               -> False
     eventChan <- newChan
     forkIO $ withManager $ \manager -> do
@@ -69,7 +68,7 @@ recompiler mainFileName mainModuleName expression = do
         setTargets =<< sequence [guessTarget mainFileName Nothing]
 
         -- Create a recompile function to call when the file changes
-        let recompile = do
+        let recompile = handleSourceError printException $ do
                 graph <- depanal [] False
 
                 load LoadAllTargets
@@ -91,7 +90,7 @@ recompiler mainFileName mainModuleName expression = do
         -- Start up the app
         recompile
         -- Watch for changes and recompile whenever they occur
-        watcher <- liftIO $ watcherForFiles [fromString mainFileName]
-        forever . handleSourceError printException $ do
+        watcher <- liftIO directoryWatcher
+        forever $ do
             _ <- liftIO $ readChan watcher
             recompile

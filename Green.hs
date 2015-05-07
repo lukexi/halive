@@ -1,4 +1,4 @@
 module Green where
 
 g :: Fractional a => a
-g = 0.6
+g = 0.5
