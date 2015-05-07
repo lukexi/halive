@@ -8,7 +8,7 @@ import Graphics.GL
 import System.Random
 import Green
 
-go = do
+main = do
     win <- acquireGLFW
     GLFW.setWindowTitle win "Hot Swap!"
     GLFW.pollEvents

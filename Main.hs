@@ -13,8 +13,7 @@ import System.FSNotify
 import qualified Filesystem.Path as FSP
 
 main :: IO ()
--- main = recompiler "test.hs" "Test" "doodle"
-main = recompiler "glfw.hs" "HotGLFW" "go"
+main = recompiler "glfw.hs"
 
 directoryWatcher :: IO (Chan Event)
 directoryWatcher = do
@@ -35,8 +34,8 @@ directoryWatcher = do
 
     return eventChan
 
-recompiler :: String -> String -> String -> IO ()
-recompiler mainFileName mainModuleName expression = do
+recompiler :: String -> IO ()
+recompiler mainFileName = do
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
         
         -- Get the default dynFlags
@@ -75,15 +74,16 @@ recompiler mainFileName mainModuleName expression = do
 
                 liftIO $ linkPackages dflags3 packagesToLink
 
-                modSum <- getModSummary $ mkModuleName mainModuleName
-                liftIO . putStrLn $ "Parsing..."
-                p <- parseModule modSum
-                liftIO . putStrLn $ "Typechecking..."
-                _t <- typecheckModule p
+                forM_ graph $ \moduleSummary -> do
+                    liftIO . putStrLn $ "Parsing..."
+                    p <- parseModule moduleSummary
+                    liftIO . putStrLn $ "Typechecking..."
+                    _t <- typecheckModule p
+                    return ()
                 
                 setContext $ map (IIModule . ms_mod_name) graph
 
-                rr <- runStmt expression RunToCompletion
+                rr <- runStmt "main" RunToCompletion
                 case rr of
                     RunOk _ -> liftIO $ putStrLn "OK"
                     _ -> liftIO $ putStrLn "Error :*("
