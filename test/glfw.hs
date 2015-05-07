@@ -4,12 +4,18 @@ module HotGLFW where
 import qualified Graphics.UI.GLFW as GLFW
 import Control.Concurrent
 import Graphics.GL
+import Graphics.GL.Pal
 
 import System.Random
 import Data.Time
 import Control.Monad
 
 import HaliveUtils
+import Cube
+import Linear
+
+import Data.Bits
+import SetupGLFW
 
 import qualified Green as Green -- Try changing the green amount 
                                 -- while the program is running
@@ -19,6 +25,12 @@ main = do
     -- error "DANG!" -- It's ok if your program crashes, it shouldn't crash Halive
     win <- acquireGLFW
     GLFW.setWindowTitle win "Hot Swap!"
+
+    program <- createShaderProgram "test/cube.vert" "test/cube.frag"
+    cube <- makeCube program
+
+    glEnable GL_DEPTH_TEST
+
     -- do -- swap this with the next line to test immediately-returning mains
     forever $ do
         GLFW.pollEvents
@@ -28,7 +40,14 @@ main = do
             blueFreq = 1 * pi
             blue     = sin (now * blueFreq)
         glClearColor red Green.green blue 1
-        glClear GL_COLOR_BUFFER_BIT
+        glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT)
+        -- Render our scene
+        let projection = perspective 45 (640/480) 0.01 1000
+            model      = mkTransformation 1 (V3 0 0 (-4))
+            view       = lookAt (V3 0 2 5) (V3 0 0 (-4)) (V3 0 1 0)
+            mvp        = projection !*! view !*! model
+        
+        renderCube cube mvp
         GLFW.swapBuffers win
 
 -- GLFW only likes to be initialized once in a given process.
@@ -38,21 +57,3 @@ main = do
 acquireGLFW :: IO GLFW.Window
 acquireGLFW = reacquire 0 (setupGLFW "HotGLFW" 640 480)
 
-
-setupGLFW :: String -> Int -> Int -> IO GLFW.Window
-setupGLFW windowName desiredW desiredH = do
-    _ <- GLFW.init
-
-    GLFW.windowHint $ GLFW.WindowHint'ClientAPI GLFW.ClientAPI'OpenGL
-    GLFW.windowHint $ GLFW.WindowHint'OpenGLForwardCompat True
-    GLFW.windowHint $ GLFW.WindowHint'OpenGLProfile GLFW.OpenGLProfile'Core
-    GLFW.windowHint $ GLFW.WindowHint'ContextVersionMajor 4
-    GLFW.windowHint $ GLFW.WindowHint'ContextVersionMinor 1
-    GLFW.windowHint $ GLFW.WindowHint'sRGBCapable True
-
-    Just win <- GLFW.createWindow desiredW desiredH windowName Nothing Nothing
-    
-    GLFW.makeContextCurrent (Just win)
-
-    GLFW.swapInterval 1
-    return win
