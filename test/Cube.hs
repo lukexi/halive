@@ -72,9 +72,7 @@ makeCube program = do
     vaoCubeVertices <- overPtr (glGenBuffers 1)
 
     glBindBuffer GL_ARRAY_BUFFER vaoCubeVertices
-
-
-
+    
     let cubeVerticesSize = fromIntegral (sizeOf (undefined :: GLfloat) * length cubeVertices)
 
     withArray cubeVertices $ 

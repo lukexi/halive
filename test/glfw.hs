@@ -35,6 +35,7 @@ main = do
     forever $ do
         GLFW.pollEvents
         now <- realToFrac . utctDayTime <$> getCurrentTime
+        -- print now -- Try turning on a stream of now logs
         let redFreq  = 2 * pi -- Try changing the red and blue frequencies.
             red      = sin (now * redFreq)
             blueFreq = 1 * pi

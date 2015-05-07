@@ -122,7 +122,8 @@ recompileTargets = handleSourceError printException $ do
     rr <- runStmt "main" RunToCompletion
     case rr of
         RunOk _ -> liftIO $ putStrLn "OK"
-        _ -> liftIO $ putStrLn "Error :*("
+        RunException exception -> liftIO $ print exception
+        RunBreak _ _ _ -> liftIO $ putStrLn "Breakpoint"
 
 
 -- A helper from interactive-diagrams to print out GHC API values, 
