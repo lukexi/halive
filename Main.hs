@@ -50,6 +50,8 @@ recompiler mainFileName mainModuleName expression = do
                 let pkgs = map PkgConfFile [sandboxDB]
                 return dflags0 { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags0 }
 
+        -- Make sure we're configured for live-reload, and turn off the GHCi sandbox
+        -- since it breaks OpenGL/GUI usage
         let dflags2 = dflags1 { hscTarget = HscInterpreted
                               , ghcLink   = LinkInMemory
                               , ghcMode   = CompManager
@@ -57,14 +59,16 @@ recompiler mainFileName mainModuleName expression = do
         
         packagesToLink <- setSessionDynFlags dflags2
 
+        -- Initialize the package database
         (dflags3, _) <- liftIO $ initPackages dflags2
 
-        liftIO $ putStrLn "initDynLinker..."
+        -- Initialize the dynamic linker
         liftIO $ initDynLinker dflags3 
 
-        liftIO $ putStrLn "Setting targets..."
+        -- Set the given filename as a compilation target
         setTargets =<< sequence [guessTarget mainFileName Nothing]
 
+        -- Create a recompile function to call when the file changes
         let recompile = do
                 load LoadAllTargets
 
