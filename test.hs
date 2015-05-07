@@ -1,18 +1,20 @@
 module Test (test) where
 import Foreign.Store
+import Control.Concurrent
+import Control.Monad
 test :: Int
 test = 13
 
 doodle = do
-    let storeID = Store 0
+    let storeID = 0
     putStrLn $ "Looking up store: " ++ show storeID
-    maybeStore <- lookupStore 0 :: IO (Maybe (Store (Int -> Int)))
+    maybeStore <- lookupStore storeID :: IO (Maybe (Store (Int -> Int)))
     case maybeStore of
         Just store -> do
             f <- readStore store
-            print (f 6)
+            print (f 8)
         Nothing -> do
             putStrLn "Creating a new store..."
-            s <- writeStore (Store 0) ((*2) :: Int -> Int)
+            s <- writeStore (Store storeID) ((*2) :: Int -> Int)
             print s
             

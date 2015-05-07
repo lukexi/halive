@@ -1,0 +1,2 @@
+https://parenz.wordpress.com/2013/08/17/ghc-api-interpreted-compiled-and-package-modules/
+https://parenz.wordpress.com/2013/07/29/ghc-packagedb/
