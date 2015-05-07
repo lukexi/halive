@@ -70,6 +70,8 @@ recompiler mainFileName mainModuleName expression = do
 
         -- Create a recompile function to call when the file changes
         let recompile = do
+                graph <- depanal [] False
+
                 load LoadAllTargets
 
                 liftIO $ linkPackages dflags3 packagesToLink
@@ -80,7 +82,7 @@ recompiler mainFileName mainModuleName expression = do
                 liftIO . putStrLn $ "Typechecking..."
                 _t <- typecheckModule p
                 
-                setContext [IIModule $ moduleName $ ms_mod modSum]
+                setContext $ map (IIModule . ms_mod_name) graph
 
                 rr <- runStmt expression RunToCompletion
                 case rr of

@@ -5,11 +5,15 @@ import qualified Graphics.UI.GLFW as GLFW
 import Control.Concurrent
 import Graphics.GL
 
+import System.Random
+import Green
+
 go = do
     win <- acquireGLFW
     GLFW.setWindowTitle win "Hot Swap!"
     GLFW.pollEvents
-    glClearColor 1 0.5 0 1
+    -- r <- (/1000) <$> randomRIO (0,1000)
+    glClearColor 0 g 0 1
     glClear GL_COLOR_BUFFER_BIT
     GLFW.swapBuffers win
 
