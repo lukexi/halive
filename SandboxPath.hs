@@ -5,9 +5,6 @@ import System.FilePath
 import Data.List
 import Data.Char
 
-getSandboxFlags :: IO String
-getSandboxFlags = maybe "" ("-package-db=" ++) <$> getSandboxDb
-
 -- From ghc-mod
 mightExist :: FilePath -> IO (Maybe FilePath)
 mightExist f = do

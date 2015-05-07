@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 import DynFlags
 import GHC
 -- import Outputable
@@ -38,26 +38,29 @@ watcherForFiles watchedFiles = do
 
 recompiler :: String -> String -> String -> IO ()
 recompiler mainFileName mainModuleName expression = do
-    -- Static flags must be parsed before calling runGhc
-    sandboxFlags <- liftIO $ getSandboxFlags
-    (leftovers, _) <- liftIO $ parseStaticFlags [noLoc sandboxFlags]
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
         
-        -- GHC requires calling 'setSessionDynFlags' before anything else
-        dflags <- getSessionDynFlags
-        (dflags2, _, _) <- liftIO $ parseDynamicFlags dflags leftovers
+        -- Get the default dynFlags
+        dflags0 <- getSessionDynFlags
         
-        let dflags3 = dflags2 { hscTarget = HscInterpreted
+        -- If there's a sandbox, add its package DB
+        dflags1 <- liftIO getSandboxDb >>= \case
+            Nothing -> return dflags0
+            Just sandboxDB -> do
+                let pkgs = map PkgConfFile [sandboxDB]
+                return dflags0 { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags0 }
+
+        let dflags2 = dflags1 { hscTarget = HscInterpreted
                               , ghcLink   = LinkInMemory
                               , ghcMode   = CompManager
                               } `gopt_unset` Opt_GhciSandbox
         
-        packagesToLink <- setSessionDynFlags dflags3
+        packagesToLink <- setSessionDynFlags dflags2
 
-        (dflags4, _) <- liftIO $ initPackages dflags3
+        (dflags3, _) <- liftIO $ initPackages dflags2
 
         liftIO $ putStrLn "initDynLinker..."
-        liftIO $ initDynLinker dflags4 
+        liftIO $ initDynLinker dflags3 
 
         liftIO $ putStrLn "Setting targets..."
         setTargets =<< sequence [guessTarget mainFileName Nothing]
@@ -65,7 +68,7 @@ recompiler mainFileName mainModuleName expression = do
         let recompile = do
                 load LoadAllTargets
 
-                liftIO $ linkPackages dflags4 packagesToLink
+                liftIO $ linkPackages dflags3 packagesToLink
 
                 modSum <- getModSummary $ mkModuleName mainModuleName
                 liftIO . putStrLn $ "Parsing..."
@@ -86,13 +89,3 @@ recompiler mainFileName mainModuleName expression = do
         forever . handleSourceError printException $ do
             _ <- liftIO $ readChan watcher
             recompile
-
-
-addPackageDBs :: GhcMonad m => [FilePath] -> m ()
-addPackageDBs filePaths = do 
-    dynFlags <- getSessionDynFlags
-    let pkgs = map PkgConfFile filePaths
-    let dynFlags' = dynFlags { extraPkgConfs = (pkgs ++) . extraPkgConfs dynFlags }
-    setSessionDynFlags dynFlags'
-    _ <- liftIO $ initPackages dynFlags'  
-    return ()
