@@ -13,6 +13,7 @@ import Control.Monad
 import Data.IORef
 import SandboxPath
 import System.FSNotify
+import System.FilePath
 import qualified Filesystem.Path as FSP
 
 directoryWatcher :: IO (Chan Event)
@@ -74,7 +75,10 @@ recompiler mainFileName importPaths' = withGHCSession mainFileName importPaths' 
 withGHCSession :: FilePath -> [FilePath] -> Ghc () -> IO ()
 withGHCSession mainFileName importPaths' action = do
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
-        
+        -- Add the main file's path to the import path list
+        let mainFilePath = dropFileName mainFileName
+            importPaths'' = mainFilePath:importPaths'
+
         -- Get the default dynFlags
         dflags0 <- getSessionDynFlags
         
@@ -90,7 +94,7 @@ withGHCSession mainFileName importPaths' action = do
         let dflags2 = dflags1 { hscTarget = HscInterpreted
                               , ghcLink   = LinkInMemory
                               , ghcMode   = CompManager
-                              , importPaths = importPaths'
+                              , importPaths = importPaths''
                               } `gopt_unset` Opt_GhciSandbox
         
         -- We must set dynflags before calling initPackages or any other GHC API
