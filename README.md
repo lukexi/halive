@@ -22,7 +22,9 @@ and changing values in `glfw.hs` and `Green.hs`
 (requires `gl`, `GLFW-b`, and `foreign-store`).
 
 Creating and deleting modules in the include path should 
-work fine during a halive session.
+work fine during a halive session. Halive also supports Cabal sandboxes; 
+if run within a directory containing a cabal.sandbox.config file it will
+use the package database defined therein.
 
 Halive also works nicely with either batch-processing or run-loop type
 programs — if the program finishes, it will be restarted on next save,
