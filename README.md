@@ -24,7 +24,7 @@ halive will recompile and rerun the `main` function in the file you gave it.
 
 See a demo by running `demo.sh` 
 and changing values in `glfw.hs` and `Green.hs`
-(requires `gl`, `GLFW-b`, and `foreign-store`).
+(requires `gl`, `GLFW-b`, `foreign-store`, `linear`, and `random`).
 
 Keeping values alive
 --------------------
