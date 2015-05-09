@@ -1,5 +1,7 @@
 module SandboxPath where
 import Data.Maybe
+import Data.Traversable (traverse)
+import Control.Applicative ((<$>))
 import System.Directory
 import System.FilePath
 import Data.List
