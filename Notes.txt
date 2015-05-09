@@ -1,6 +1,14 @@
 Main source lives in exec/Halive.hs
 
-(see note in README as to why this isn't part of the library)
+
+*N.B.:*
+
+I couldn't make halive as a library due to a separate oddity with
+ghc @rpaths suddently not resolving, but should you attempt it, 
+be aware that executables based on halive 
+must be built with the -dynamic flag for ghc or else strange errors 
+may occur when interfacing with external libraries like CoreFoundation
+(GHCi uses this flag for its executable as well).
 
 
 
