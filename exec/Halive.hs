@@ -1,20 +1,22 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase #-}
 module Halive where
 
-import DynFlags
 import GHC
-import Outputable
 import Linker
 import Packages
+import DynFlags
 import GHC.Paths
-import Control.Monad.IO.Class
-import Control.Concurrent
-import Control.Monad
+import Outputable
 import Data.IORef
-import SandboxPath
+import Control.Monad
+import Control.Concurrent
+import Control.Monad.IO.Class
+
 import System.FSNotify
 import System.FilePath
 import qualified Filesystem.Path as FSP
+
+import SandboxPath
 
 directoryWatcher :: IO (Chan Event)
 directoryWatcher = do
@@ -114,20 +116,24 @@ withGHCSession mainFileName importPaths' action = do
 -- Recompiles the current targets
 recompileTargets :: Ghc ()
 recompileTargets = handleSourceError printException $ do
+    -- Get the dependencies of the main target
     graph <- depanal [] False
 
-    _success <- load LoadAllTargets
+    -- Reload the main target
+    loadSuccess <- load LoadAllTargets
+    unless (failed loadSuccess) $ do
+        -- We must parse and typecheck modules before they'll be available for usage
+        forM_ graph (typecheckModule <=< parseModule)
+        
+        -- Load the dependencies of the main target
+        setContext $ map (IIModule . ms_mod_name) graph
 
-    -- We must parse and typecheck modules before they'll be available for usage
-    forM_ graph (typecheckModule <=< parseModule)
-    
-    setContext $ map (IIModule . ms_mod_name) graph
-
-    rr <- runStmt "main" RunToCompletion
-    case rr of
-        RunOk _ -> liftIO $ putStrLn "OK"
-        RunException exception -> liftIO $ print exception
-        RunBreak _ _ _ -> liftIO $ putStrLn "Breakpoint"
+        -- Run the target file's "main" function
+        rr <- runStmt "main" RunToCompletion
+        case rr of
+            RunOk _ -> liftIO $ putStrLn "OK"
+            RunException exception -> liftIO $ print exception
+            RunBreak _ _ _ -> liftIO $ putStrLn "Breakpoint"
 
 
 -- A helper from interactive-diagrams to print out GHC API values, 
