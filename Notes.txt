@@ -1,11 +1,34 @@
+TODO:
+[ ] Improve control-c handling to not require holding down the keys
+        http://stackoverflow.com/questions/2349233/catching-control-c-exception-in-ghc-haskell
+
+[ ] Add -Wall support
+    https://downloads.haskell.org/~ghc/latest/docs/html/libraries/ghc/DynFlags.html#t:Settings
+
+[ ] Add general GHC flag support, which should be easy enough
+
+[ ] Configurable watched filetypes, either with a dotfile or flags
+
+[ ] Watch all included path trees rather than the current directory.
+
+[ ] Bug: halive crashes if multiple files are saved/added at once
+
+[ ] Sort-of-bug: some editors do a delete/replace instead of a modify on files, so we don't see the change. Only watching for modify makes sense since creations and deletions can't affect running code until something is modified, and watching for them might unnecessarily halt your program while you're working on creating a file. So possibly make this optional.
+
+[ ] Add helpers for restarting user threads
+        http://stackoverflow.com/questions/24999636/is-there-a-way-to-kill-all-forked-threads-in-a-ghci-session-without-restarting-i
+
+[ ] Improve Control-C handling
+	http://neilmitchell.blogspot.fr/2015/05/handling-control-c-in-haskell.html
+
+NOTES:
+
 Main source lives in exec/Halive.hs
 
+I couldn't make halive as a library due to an oddity with
+ghc @rpaths suddently not resolving. 
 
-*N.B.:*
-
-I couldn't make halive as a library due to a separate oddity with
-ghc @rpaths suddently not resolving, but should you attempt it, 
-be aware that executables based on halive 
+Should you base things off the code, be aware that executables
 must be built with the -dynamic flag for ghc or else strange errors 
 may occur when interfacing with external libraries like CoreFoundation
 (GHCi uses this flag for its executable as well).
@@ -20,6 +43,11 @@ https://parenz.wordpress.com/2013/08/17/ghc-api-interpreted-compiled-and-package
 
 https://parenz.wordpress.com/2013/07/29/ghc-packagedb/
 
-http://stackoverflow.com/questions/24999636/is-there-a-way-to-kill-all-forked-threads-in-a-ghci-session-without-restarting-i
 
-http://stackoverflow.com/questions/2349233/catching-control-c-exception-in-ghc-haskell
+"How to reload module that package has linked in memory?" by Andy Stewart
+https://mail.haskell.org/pipermail/haskell-cafe/2010-December/087684.html
+
+"Dynamically loading and unloading (C) object files" by Edsko de Vries
+Talks about using linkObj and unlinkObj to compile and load C code into a running program.
+https://mail.haskell.org/pipermail/ghc-devs/2013-November/003170.html
+

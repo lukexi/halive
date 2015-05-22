@@ -19,7 +19,7 @@ import qualified Filesystem.Path as FSP
 directoryWatcher :: IO (Chan Event)
 directoryWatcher = do
     let predicate event = case event of
-            Modified path _ -> FSP.extension path `elem` map Just ["hs", "vert", "frag"]
+            Modified path _ -> FSP.extension path `elem` map Just ["hs", "vert", "frag", "pd"]
             _               -> False
     eventChan <- newChan
     _ <- forkIO $ withManager $ \manager -> do
