@@ -10,7 +10,8 @@ Live recompiler for Haskell
 
 ![Halive Demo](http://lukexi.github.io/HaliveDemo.gif)
 
-Halive uses the GHC API to instantly recompile and reload your code any time you change it.
+Halive uses the GHC API to instantly recompile 
+and reload your code any time you change it.
 
 Usage:
 `cabal install`
@@ -22,8 +23,11 @@ and then
 Any time you change a file in the current directory or its subdirectories,
 halive will recompile and rerun the `main` function in the file you gave it.
 
-See a demo by running `demo.sh` 
-and changing values in `glfw.hs` and `Green.hs`
+If the program is long-running (e.g. a daemon, GUI or game loop) it will be
+killed and restarted. Learn how to maintain state in the next section.
+
+Try a live-coding GL demo by running `halive demo/Main.hs` (in the source package)
+and changing values in `Main.hs` and `Green.hs`
 (requires `gl`, `GLFW-b`, `foreign-store`, `linear`, and `random`).
 
 Keeping values alive
@@ -37,7 +41,7 @@ your value in `reacquire` along with a unique identifier, like:
 to only create the resource the first time you run the program, and then
 reuse it on subsequent recompilations.
 
-You can see this in action in `test/glfw.hs`.
+You can see this in action in `demo/Main.hs`.
 
 Thanks to Chris Done's 
 [`foreign-store`](https://hackage.haskell.org/package/foreign-store) 
