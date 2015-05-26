@@ -14,7 +14,7 @@ Halive uses the GHC API to instantly recompile
 and reload your code any time you change it.
 
 Usage:
-`cabal install`
+`cabal install halive`
 
 and then
 
