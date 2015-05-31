@@ -44,7 +44,9 @@ executable halive
   main-is:             main.hs
   hs-source-dirs:      exec
   default-language:    Haskell2010
-  ghc-options:         -Wall -threaded -dynamic
+  ghc-options:         -Wall -threaded
+  if !os(windows)
+    ghc-options:         -dynamic
   other-modules:       
     Banner
     Halive
