@@ -47,6 +47,15 @@ Thanks to Chris Done's
 [`foreign-store`](https://hackage.haskell.org/package/foreign-store) 
 library for enabling this.
 
+Passing command-line arguments
+------------------------------
+
+To use Halive with haskell code that is expecting command-line arguments,
+separate the arguments to Halive and the argumetns to the app with a `--`
+such as:
+
+`halive <path/to/mymain.hs> <extra-include-dirs> -- <args-to-myapp>`
+
 Notes
 -----
 

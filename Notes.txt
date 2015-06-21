@@ -1,5 +1,7 @@
 TODO:
 
+[ ] Figure out how to make Halive work on windows
+
 [ ] Flag handling update: 
     The three below would be subsumed by just using the parseStaticFlags/parseDynamicFlags
     functions to set up DynFlags, and then parsing out the included paths from there. That way we

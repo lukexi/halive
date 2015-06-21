@@ -34,7 +34,7 @@ main = do
     GLFW.setWindowTitle win "Hot Swap!"
 
     -- Changing the shaders' contents will trigger Halive as well!
-    program <- createShaderProgram "test/cube.vert" "test/cube.frag"
+    program <- createShaderProgram "demo/cube.vert" "demo/cube.frag"
     cube <- makeCube program
 
     -- Any GL state will stick around, so be aware of that.
@@ -45,7 +45,7 @@ main = do
         GLFW.pollEvents
         now <- realToFrac . utctDayTime <$> getCurrentTime
         -- print now -- Try turning on a stream of now logs
-        let redFreq  = 2 * pi -- Try changing the red and blue frequencies.
+        let redFreq  = 20 * pi -- Try changing the red and blue frequencies.
             red      = sin (now * redFreq)
             blueFreq = 1 * pi
             blue     = sin (now * blueFreq)
