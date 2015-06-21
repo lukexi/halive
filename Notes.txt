@@ -47,8 +47,10 @@ TODO:
     
 [ ] Check if we need foreign-store at all; it seems like global MVars would do the trick just as well.
 
-
-
+[ ] Can fix Halive breaking with .o files present
+    http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
+    target <- guessTarget "*Test.hs" Nothing
+    addTarget target
 
 NOTES:
 
@@ -80,3 +82,13 @@ https://mail.haskell.org/pipermail/haskell-cafe/2010-December/087684.html
 Talks about using linkObj and unlinkObj to compile and load C code into a running program.
 https://mail.haskell.org/pipermail/ghc-devs/2013-November/003170.html
 
+
+http://bluishcoder.co.nz/2008/11/25/dynamic-compilation-and-loading-of.html
+
+
+See if these help with Windows
+"Loading of shared libraries is problematic in ghc 7.10.1"
+https://ghc.haskell.org/trac/ghc/ticket/10442
+
+"Need option to use system gcc and binutils on Windows/msys2"
+https://ghc.haskell.org/trac/ghc/ticket/9101
