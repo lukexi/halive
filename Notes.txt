@@ -58,8 +58,6 @@ DONE
 
 NOTES:
 
-Main source lives in exec/Halive.hs
-
 I couldn't make halive as a library due to an oddity with
 ghc @rpaths suddently not resolving. 
 
@@ -68,6 +66,12 @@ must be built with the -dynamic flag for ghc or else strange errors
 may occur when interfacing with external libraries like CoreFoundation
 (GHCi uses this flag for its executable as well).
 
+
+
+
+Tried to generate the Hackage description with:
+pandoc -f markdown_github -t haddock README.md
+but it didn't seem to be quite the right format. Punted to redirecting to github for now.
 
 
 Reference links:

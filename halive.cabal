@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                halive
-version:             0.1.0.1
+version:             0.1.0.2
 synopsis:            A live recompiler
 description:         
   Live recompiler for Haskell
