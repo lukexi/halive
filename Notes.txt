@@ -27,14 +27,6 @@ TODO:
 	http://neilmitchell.blogspot.fr/2015/05/handling-control-c-in-haskell.html
     http://stackoverflow.com/questions/2349233/catching-control-c-exception-in-ghc-haskell
 
-[ ] Add program command line argument support.
-    I'm guessing that programs run under Halive will currently get Halive's own command line args.
-    We could use the -- convention to separate halive arguments from program arguments,
-    and call withArgs before running the program's "main".
-    
-    Once we've got this, we should be able to live edit Halive's source with Halive which should
-    be a fun demo.
-
 [ ] Try integrating different debugging workflows.
     putStrLn/trace debugging is already a lot nicer with Halive since you can
     toggle them on and off while the program is running. Expand on this
@@ -53,6 +45,16 @@ TODO:
     http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
     target <- guessTarget "*Test.hs" Nothing
     addTarget target
+
+DONE
+[x] Add program command line argument support.
+    I'm guessing that programs run under Halive will currently get Halive's own command line args.
+    We could use the -- convention to separate halive arguments from program arguments,
+    and call withArgs before running the program's "main".
+    
+    Once we've got this, we should be able to live edit Halive's source with Halive which should
+    be a fun demo.
+    (done thanks to Jonathan Geddes @jargv !)
 
 NOTES:
 
