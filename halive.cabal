@@ -11,7 +11,7 @@ description:
   .
   /Usage:/
   .
-  > halive path/to/myfile.hs [optionally any/extra include/dirs ..]
+  > halive path/to/myfile.hs [optionally any/extra include/dirs ..] -- [args to app]
   .
   See <https://github.com/lukexi/halive/blob/master/README.md README>
 homepage:            https://github.com/lukexi/halive
