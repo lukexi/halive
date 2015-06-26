@@ -1,4 +1,4 @@
-# Revision history for udptest
+# Revision history for halive
 
 ## 0.1.0.4  -- 2015-06-23
 * Add Halive.Concurrent to help with killing threads when restarting a program
