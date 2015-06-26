@@ -20,8 +20,7 @@ TODO:
 
 [ ] Sort-of-bug: some editors do a delete/replace instead of a modify on files, so we don't see the change. Only watching for modify makes sense since creations and deletions can't affect running code until something is modified, and watching for them might unnecessarily halt your program while you're working on creating a file. So possibly make this optional.
 
-[ ] Add helpers for restarting user threads
-        http://stackoverflow.com/questions/24999636/is-there-a-way-to-kill-all-forked-threads-in-a-ghci-session-without-restarting-i
+
 
 [ ] Improve Control-C handling
 	http://neilmitchell.blogspot.fr/2015/05/handling-control-c-in-haskell.html
@@ -47,6 +46,9 @@ TODO:
     addTarget target
 
 DONE
+[x] Add helpers for restarting user threads
+        http://stackoverflow.com/questions/24999636/is-there-a-way-to-kill-all-forked-threads-in-a-ghci-session-without-restarting-i
+
 [x] Add program command line argument support.
     I'm guessing that programs run under Halive will currently get Halive's own command line args.
     We could use the -- convention to separate halive arguments from program arguments,

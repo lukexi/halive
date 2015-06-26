@@ -1,6 +1,7 @@
 import Halive
 import Banner
 import System.Environment
+import Control.Applicative
 
 separateArgs :: [String] -> ([String], [String])
 separateArgs args = (haliveArgs, drop 1 targetArgs)

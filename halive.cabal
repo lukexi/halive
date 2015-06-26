@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                halive
-version:             0.1.0.3
+version:             0.1.0.4
 synopsis:            A live recompiler
 description:         
   Live recompiler for Haskell
@@ -33,11 +33,13 @@ library
   hs-source-dirs:      src
   exposed-modules:
     Halive.Utils
+    Halive.Concurrent
   default-language:    Haskell2010
   ghc-options:         -Wall
   build-depends:
     base,
-    foreign-store
+    foreign-store,
+    containers
   
 
 executable halive
