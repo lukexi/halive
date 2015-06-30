@@ -9,6 +9,8 @@ import Control.Concurrent
 import System.IO.Unsafe
 import           Data.Set (Set)
 import qualified Data.Set as Set
+import Prelude hiding (mapM_)
+import Data.Foldable
 
 -- | A small collection of helper functions for creating threads that can be killed each time Halive re-runs your main function.
 -- This is helpful for programs where you control the threads, but doesn't solve the problem of libraries that use threads 

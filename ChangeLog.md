@@ -1,5 +1,8 @@
 # Revision history for halive
 
+## 0.1.0.5  -- 2015-06-29
+* 7.8 compatibility fix
+
 ## 0.1.0.4  -- 2015-06-23
 * Add Halive.Concurrent to help with killing threads when restarting a program
 
