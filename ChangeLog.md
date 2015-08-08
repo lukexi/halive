@@ -1,5 +1,8 @@
 # Revision history for halive
 
+## 0.1.0.6  -- 2015-08-07
+* Remove system-filepath
+
 ## 0.1.0.5  -- 2015-06-29
 * 7.8 compatibility fix
 

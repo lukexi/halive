@@ -14,14 +14,13 @@ import Control.Monad.IO.Class
 
 import System.FSNotify
 import System.FilePath
-import qualified Filesystem.Path as FSP
 
 import SandboxPath
 
 directoryWatcher :: IO (Chan Event)
 directoryWatcher = do
     let predicate event = case event of
-            Modified path _ -> FSP.extension path `elem` map Just ["hs", "vert", "frag", "pd"]
+            Modified path _ -> takeExtension path `elem` [".hs", ".vert", ".frag", ".pd"]
             _               -> False
     eventChan <- newChan
     _ <- forkIO $ withManager $ \manager -> do
