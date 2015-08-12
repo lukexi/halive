@@ -14,7 +14,6 @@ separateArgs args = (haliveArgs, drop 1 targetArgs)
 main :: IO ()
 main = do
   (args, targetArgs) <- separateArgs <$> getArgs
-  print (args, targetArgs)
   case args of
     [] -> putStrLn "Usage: halive <main.hs> <include dir> [-- <args to myapp>]"
     (mainName:includeDirs) -> do

@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                halive
-version:             0.1.0.6
+version:             0.1.0.7
 synopsis:            A live recompiler
 description:         
   Live recompiler for Haskell
@@ -52,7 +52,7 @@ executable halive
   other-modules:       
     Banner
     Halive
-    SandboxPath
+    FindPackageDBs
   -- other-extensions:    
   build-depends:
     base >=4.7 && <4.9,
@@ -63,6 +63,7 @@ executable halive
     directory, 
     filepath, 
     fsnotify,
+    process,
     halive
 -- ^ we don't actually depend on halive, but this seems to work around a bug when running stack install:
 -- "Setup.hs: Error: Could not find module: Halive.Utils with any suffix: ["hi"]"

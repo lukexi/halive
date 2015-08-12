@@ -15,7 +15,7 @@ import Control.Monad.IO.Class
 import System.FSNotify
 import System.FilePath
 
-import SandboxPath
+import FindPackageDBs
 
 directoryWatcher :: IO (Chan Event)
 directoryWatcher = do
@@ -74,11 +74,11 @@ recompiler mainFileName importPaths' = withGHCSession mainFileName importPaths' 
 
 
 withGHCSession :: FilePath -> [FilePath] -> Ghc () -> IO ()
-withGHCSession mainFileName importPaths' action = do
+withGHCSession mainFileName extraImportPaths action = do
     defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
         -- Add the main file's path to the import path list
-        let mainFilePath = dropFileName mainFileName
-            importPaths'' = mainFilePath:importPaths'
+        let mainFilePath   = dropFileName mainFileName
+            allImportPaths = mainFilePath:extraImportPaths
 
         -- Get the default dynFlags
         dflags0 <- getSessionDynFlags
@@ -90,22 +90,29 @@ withGHCSession mainFileName importPaths' action = do
                 let pkgs = map PkgConfFile [sandboxDB]
                 return dflags0 { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags0 }
 
+        -- If this is a stack project, add its package DBs
+        dflags2 <- liftIO getStackDb >>= \case
+            Nothing -> return dflags1
+            Just stackDBs -> do
+                let pkgs = map PkgConfFile stackDBs
+                return dflags1 { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags1 }
+
         -- Make sure we're configured for live-reload, and turn off the GHCi sandbox
         -- since it breaks OpenGL/GUI usage
-        let dflags2 = dflags1 { hscTarget = HscInterpreted
+        let dflags3 = dflags2 { hscTarget = HscInterpreted
                               , ghcLink   = LinkInMemory
                               , ghcMode   = CompManager
-                              , importPaths = importPaths''
+                              , importPaths = allImportPaths
                               } `gopt_unset` Opt_GhciSandbox
         
         -- We must set dynflags before calling initPackages or any other GHC API
-        _ <- setSessionDynFlags dflags2
+        _ <- setSessionDynFlags dflags3
 
         -- Initialize the package database
-        (dflags3, _) <- liftIO $ initPackages dflags2
+        (dflags4, _) <- liftIO $ initPackages dflags3
 
         -- Initialize the dynamic linker
-        liftIO $ initDynLinker dflags3 
+        liftIO $ initDynLinker dflags4 
 
         -- Set the given filename as a compilation target
         setTargets =<< sequence [guessTarget mainFileName Nothing]

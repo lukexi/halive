@@ -1,5 +1,8 @@
 # Revision history for halive
 
+## 0.1.0.7  -- 2015-08-12
+* Implement support for stack projects
+
 ## 0.1.0.6  -- 2015-08-07
 * Remove system-filepath
 
