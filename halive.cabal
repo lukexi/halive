@@ -62,7 +62,7 @@ executable halive
     transformers,
     directory, 
     filepath, 
-    fsnotify,
+    fsnotify >= 0.2.1,
     process,
     halive
 -- ^ we don't actually depend on halive, but this seems to work around a bug when running stack install:
