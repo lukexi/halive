@@ -1,11 +1,16 @@
+{-# LANGUAGE CPP #-}
 module SandboxPath where
 import Data.Maybe
-import Data.Traversable (traverse)
-import Control.Applicative ((<$>))
+
 import System.Directory
 import System.FilePath
 import Data.List
 import Data.Char
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Traversable (traverse)
+import Control.Applicative ((<$>))
+#endif
 
 -- From ghc-mod
 mightExist :: FilePath -> IO (Maybe FilePath)
