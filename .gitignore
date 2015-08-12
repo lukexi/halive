@@ -4,3 +4,4 @@ dist
 *.o
 Main
 .cabal-sandbox
+.stack-work

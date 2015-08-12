@@ -62,4 +62,7 @@ executable halive
     transformers,
     directory, 
     filepath, 
-    fsnotify
+    fsnotify,
+    halive
+-- ^ we don't actually depend on halive, but this seems to work around a bug when running stack install:
+-- "Setup.hs: Error: Could not find module: Halive.Utils with any suffix: ["hi"]"

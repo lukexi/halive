@@ -19,7 +19,3 @@ reacquire storeID create = do
             writeStore (Store storeID) value
             return value
 
--- TODO: a version of forkIO that records each threadID so they
--- can be killed when the program restarts, probably via
--- a 'killOldThreads' function the user calls at the 
--- start of their program.
