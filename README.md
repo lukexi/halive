@@ -73,4 +73,6 @@ and if it's still running, it will be killed and restarted on save.
 To kill Halive during run-loop type programs, you may need to hold down Ctrl-C
 to get GHC to recognize the double-Control-C-kill sequence.
 
+Halive should work on Windows and Mac, and probably Linux too (untested, please let me know if it doesn't!)
+
 [@lukexi](http://twitter.com/lukexi)

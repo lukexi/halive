@@ -1,6 +1,5 @@
 flags: {}
 packages:
 - '.'
-extra-deps:
-- fsnotify-0.2.1
-resolver: nightly-2015-08-07
+extra-deps: []
+resolver: lts-3.0
