@@ -49,6 +49,8 @@ executable halive
   ghc-options:         -Wall -threaded
   if !os(windows)
     ghc-options:         -dynamic
+  -- ^ Required on Mac due to https://ghc.haskell.org/trac/ghc/ticket/9278
+  -- (does GHCi use this??)
   other-modules:       
     Banner
     Halive
