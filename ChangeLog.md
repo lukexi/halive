@@ -1,6 +1,7 @@
 # Revision history for halive
 
 ## 0.1.0.8  -- TBD
+* Windows support!
 * Add the demo as a test-suite to manage its dependencies
 
 ## 0.1.0.7  -- 2015-08-12
