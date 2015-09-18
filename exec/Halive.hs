@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase, ScopedTypeVariables #-}
 module Halive where
 
 import GHC
@@ -10,6 +10,7 @@ import Outputable
 import Data.IORef
 import Control.Monad
 import Control.Concurrent
+import Control.Exception
 import Control.Monad.IO.Class
 
 import System.FSNotify
@@ -68,7 +69,9 @@ recompiler mainFileName importPaths' = withGHCSession mainFileName importPaths' 
     forever $ do
         _ <- liftIO $ takeMVar recompile
         liftIO $ writeIORef mainDone False
-        recompileTargets
+        -- We only need this gcatch on Windows, but I don't think
+        -- it will hurt on Mac/Linux.
+        gcatch recompileTargets (\(x :: SomeException) -> return ())
         liftIO $ writeIORef mainDone True
         
 
@@ -136,10 +139,14 @@ recompileTargets = handleSourceError printException $ do
 
         -- Run the target file's "main" function
         rr <- runStmt "main" RunToCompletion
-        case rr of
-            RunOk _ -> liftIO $ putStrLn "OK"
-            RunException exception -> liftIO $ print exception
-            RunBreak _ _ _ -> liftIO $ putStrLn "Breakpoint"
+        liftIO $ case rr of
+            RunOk _ -> 
+                putStrLn "OK"
+            RunException exception -> 
+                print exception
+            RunBreak _ _ _ -> 
+                putStrLn "Breakpoint"
+        
 
 
 -- A helper from interactive-diagrams to print out GHC API values, 
