@@ -71,7 +71,7 @@ recompiler mainFileName importPaths' = withGHCSession mainFileName importPaths' 
         liftIO $ writeIORef mainDone False
         -- We only need this gcatch on Windows, but I don't think
         -- it will hurt on Mac/Linux.
-        gcatch recompileTargets (\(x :: SomeException) -> return ())
+        gcatch recompileTargets (\(_x :: SomeException) -> return ())
         liftIO $ writeIORef mainDone True
         
 
