@@ -11,7 +11,7 @@ out float vID;
 
 void main( void ) { 
 
-  gl_Position = uMVP * vec4( aVertex , 1.0 );
+  gl_Position = uMVP * vec4( aVertex, 1.0 );
 
   vColor = aColor;
   vID = aID;
