@@ -40,7 +40,8 @@ library
   build-depends:
     base,
     foreign-store,
-    containers
+    containers,
+    mtl
   
 
 executable halive
