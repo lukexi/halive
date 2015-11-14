@@ -50,8 +50,8 @@ executable halive
   default-language:    Haskell2010
   ghc-prof-options:    -Wall -O2 -threaded -fprof-auto
   ghc-options:         -Wall -O2 -threaded
---  if !os(windows)
---    ghc-options:         -dynamic
+  if !os(windows)
+    ghc-options:         -dynamic
   -- ^ Required on Mac due to https://ghc.haskell.org/trac/ghc/ticket/9278
   -- (does GHCi use this??)
   other-modules:       
