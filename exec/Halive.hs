@@ -125,6 +125,7 @@ withGHCSession mainFileName extraImportPaths action = do
 -- Recompiles the current targets
 recompileTargets :: Ghc ()
 recompileTargets = handleSourceError printException $ do
+    liftIO . putStrLn $ replicate 25 '*' ++ " Recompiling... " ++ replicate 25 '*'
     -- Get the dependencies of the main target
     graph <- depanal [] False
 
