@@ -4,6 +4,14 @@ import Foreign.Store
 import Data.Word
 
 import Control.Monad.State
+import System.Environment
+
+isHaliveActive :: MonadIO m => m Bool
+isHaliveActive = liftIO $ do
+    r <- lookupEnv "Halive Active"
+    case r of
+        Just "Yes" -> return True
+        _          -> return False
 
 -- | Takes a unique integer representing your value,
 -- along with an IO action to create the first instance

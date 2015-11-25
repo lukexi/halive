@@ -17,5 +17,6 @@ main = do
   case args of
     [] -> putStrLn "Usage: halive <main.hs> <include dir> [-- <args to myapp>]"
     (mainName:includeDirs) -> do
+      setEnv "Halive Active" "Yes"
       putStrLn banner
       withArgs targetArgs $ recompiler mainName includeDirs

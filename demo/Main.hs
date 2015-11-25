@@ -40,6 +40,9 @@ main = do
     -- Any GL state will stick around, so be aware of that.
     glEnable GL_DEPTH_TEST
 
+    -- Sometimes it's useful to know if we're running under Halive or not
+    print =<< isHaliveActive
+
     -- do -- swap this with the next line to test immediately-returning mains
     forever $ do
         GLFW.pollEvents
