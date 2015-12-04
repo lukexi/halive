@@ -51,8 +51,8 @@ executable halive
   ghc-options:         -Wall -O2 -threaded
   -- This strangely enables "-dynamic" for all dependent libraries, so I need to comment this during profiling?!?
   -- Shouldn't ghc-prof-options override it anyway? Who knows.
-  if !os(windows)
-    ghc-options:         -dynamic
+  --if !os(windows)
+  --  ghc-options:         -dynamic
   -- ^ Required on Mac due to https://ghc.haskell.org/trac/ghc/ticket/9278
   -- (does GHCi use this??)
   other-modules:       
