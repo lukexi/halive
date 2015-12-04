@@ -4,6 +4,7 @@
 * Windows support!
 * Add the demo as a test-suite to manage its dependencies
 * Prioritize stack's "local-pkg-db:" over "snapshot-pkg-db:" to allow overriding packages just as stack does
+* Now runs a typechecker thread in the background, and only restarts your program once all type errors are fixed.
 
 ## 0.1.0.7  -- 2015-08-12
 * Implement support for stack projects

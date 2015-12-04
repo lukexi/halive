@@ -58,11 +58,33 @@ recompiler mainFileName importPaths' = do
     mainDone      <- newIORef False
     -- Start with a full MVar so we recompile right away.
     recompileLock <- newMVar ()
+    -- We don't need to typecheck the first time, since the recompile will do it for us.
+    typecheckLock <- newEmptyMVar
 
     let waitForRecompileSignal = liftIO (takeMVar recompileLock)
-        sendRecompileSignal    = putMVar recompileLock ()
+        sendRecompileSignal    = liftIO (putMVar recompileLock ())
         writeMainDone          = liftIO . writeIORef mainDone
-        checkIfMainIsDone      = readIORef mainDone
+        checkIfMainIsDone      = liftIO (readIORef mainDone)
+        waitForTypecheckSignal = liftIO (takeMVar typecheckLock)
+        sendTypecheckSignal    = putMVar typecheckLock ()
+
+    typecheckSuccessful <- newIORef True
+    _ <- forkOS . withGHCSession mainFileName importPaths' . forever $ do
+        _ <- waitForTypecheckSignal
+        liftIO (writeIORef typecheckSuccessful True)
+        let onFailure = liftIO (writeIORef typecheckSuccessful False)
+        gcatch 
+            (typecheckTargets onFailure) 
+            (\(_x :: SomeException) -> onFailure)
+        success <- liftIO (readIORef typecheckSuccessful)
+        when success $ do
+            -- If main hasn't already completed running, kill the main thread.
+            -- Otherwise, we don't need to do anything
+            checkIfMainIsDone >>= \case
+                False -> liftIO (killThread mainThreadId)
+                True  -> return ()
+            
+            sendRecompileSignal
 
     -- Watch for changes and recompile whenever they occur
     watcher <- liftIO directoryWatcher
@@ -74,17 +96,12 @@ recompiler mainFileName importPaths' = do
         -- that the file has chainged again, to keep from 
         -- endlessly trying to recompile a broken file,
         -- or endlessly re-running a working batch program.
-        sendRecompileSignal
-
-        -- If main hasn't already completed running, kill the main thread.
-        -- Otherwise, we don't need to do anything
-        mainIsDone <- checkIfMainIsDone
-        unless mainIsDone $ 
-            killThread mainThreadId
+        sendTypecheckSignal
+       
     
     -- Start up the GHC session that will compile and run the app
     withGHCSession mainFileName importPaths' . forever $ do
-
+        -- Blocks until the file watcher has told us there is something new to do
         _ <- waitForRecompileSignal
         writeMainDone False
         -- We only need this gcatch on Windows, but I don't think
@@ -112,9 +129,9 @@ withGHCSession mainFileName extraImportPaths action = do
 
         -- Make sure we're configured for live-reload, and turn off the GHCi sandbox
         -- since it breaks OpenGL/GUI usage
-        let dflags3 = dflags2 { hscTarget = HscInterpreted
-                              , ghcLink   = LinkInMemory
-                              , ghcMode   = CompManager
+        let dflags3 = dflags2 { hscTarget   = HscInterpreted
+                              , ghcLink     = LinkInMemory
+                              , ghcMode     = CompManager
                               , importPaths = allImportPaths
                               } `gopt_unset` Opt_GhciSandbox
         
@@ -131,6 +148,20 @@ withGHCSession mainFileName extraImportPaths action = do
         setTargets =<< sequence [guessTarget mainFileName Nothing]
 
         action
+
+typecheckTargets :: GhcMonad m => m () -> m ()
+typecheckTargets onFailure = handleSourceError (\e -> onFailure >> printException e) $ do
+    liftIO . putStrLn $ replicate 25 '#' ++ " Typechecking... " ++ replicate 25 '#'
+    -- Get the dependencies of the main target
+    graph <- depanal [] False
+
+    -- Reload the main target
+    loadSuccess <- load LoadAllTargets
+    if failed loadSuccess 
+        then onFailure
+        else 
+            -- Parse and typecheck modules to trigger any SourceErrors therein
+            forM_ graph (typecheckModule <=< parseModule)
 
 -- Recompiles the current targets
 recompileTargets :: Ghc ()
