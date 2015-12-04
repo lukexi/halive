@@ -1,0 +1,5 @@
+flags: {}
+packages:
+- '.'
+- '../bindings-GLFW'
+resolver: nightly-2015-12-03

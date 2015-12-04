@@ -52,8 +52,5 @@ getStackDb = do
         then return Nothing
         else do
             pathInfo <- readProcess "stack" ["path"] ""
-            return . Just . catMaybes $ map (flip extractKey pathInfo) ["snapshot-pkg-db:", "local-pkg-db:"]
-
-
-
+            return . Just . catMaybes $ map (flip extractKey pathInfo) ["local-pkg-db:", "snapshot-pkg-db:"]
 

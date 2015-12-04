@@ -3,6 +3,7 @@
 ## 0.1.0.8  -- TBD
 * Windows support!
 * Add the demo as a test-suite to manage its dependencies
+* Prioritize stack's "local-pkg-db:" over "snapshot-pkg-db:" to allow overriding packages just as stack does
 
 ## 0.1.0.7  -- 2015-08-12
 * Implement support for stack projects
