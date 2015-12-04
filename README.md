@@ -77,6 +77,6 @@ Halive should work on Windows and Mac, and probably Linux too (untested, please 
 
 Troubleshooting
 ---------------
-If Halive with GLFW segfaults on windows, try `git clone -b win-halive-fix http://github.com/lukexi/bindings-GLFW` and adding the folder you cloned it to to your project's `stack.yaml` in the `packages` section.
+If Halive with GLFW segfaults on windows, try `git clone -b win-halive-fix http://github.com/lukexi/bindings-GLFW` and adding the folder you cloned it to to your project's `stack.yaml` in the `packages` section
 
 [@lukexi](http://twitter.com/lukexi)

@@ -41,7 +41,7 @@ main = do
     glEnable GL_DEPTH_TEST
 
     -- Sometimes it's useful to know if we're running under Halive or not
-    print =<< isHaliveActive
+    putStrLn . ("Running under Halive: " ++ ) . show =<< isHaliveActive
 
     -- do -- swap this with the next line to test immediately-returning mains
     forever $ do
