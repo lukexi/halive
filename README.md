@@ -14,7 +14,7 @@ Halive uses the GHC API to instantly recompile
 and reload your code any time you change it.
 
 Usage:
-`cabal install halive`
+`stack install halive`
 
 and then
 
@@ -26,9 +26,17 @@ halive will recompile and rerun the `main` function in the file you gave it.
 If the program is long-running (e.g. a daemon, GUI or game loop) it will be
 killed and restarted. Learn how to maintain state in the next section.
 
-Try a live-coding GL demo by running `halive demo/Main.hs` (in the source package)
-and changing values in `Main.hs` and `Green.hs`
-(requires `gl`, `GLFW-b`, `foreign-store`, `linear`, and `random`).
+Try a live-coding GL demo by running:
+```
+# Grab the demo package and install the demo's dependencies - only need to do this once
+stack unpack halive
+cd halive-0.1.0.8
+stack build --test --no-run-tests
+
+# Now run Halive
+halive demo/Main.hs
+```
+Changing values in `Main.hs` or `Green.hs` and saving should live-update the program.
 
 Keeping values alive
 --------------------
