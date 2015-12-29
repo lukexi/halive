@@ -84,6 +84,12 @@ but it didn't seem to be quite the right format. Punted to redirecting to github
 
 Reference links:
 
+GHC API Tutorial
+http://www.covariant.me/notes/ghcapi.html
+
+Thomas Schilling - The "new" GHC API
+http://sneezy.cs.nott.ac.uk/fplunch/weblog/wp-content/uploads/2008/12/ghc-api-slidesnotes.pdf
+
 https://wiki.haskell.org/GHC/As_a_library
 
 https://parenz.wordpress.com/2013/08/17/ghc-api-interpreted-compiled-and-package-modules/

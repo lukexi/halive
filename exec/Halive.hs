@@ -5,12 +5,13 @@ import GHC
 import Linker
 import Packages
 import DynFlags
+import Exception
 import GHC.Paths
 import Outputable
+
 import Data.IORef
 import Control.Monad
 import Control.Concurrent
-import Control.Exception
 import Control.Monad.IO.Class
 
 import System.FSNotify
@@ -106,7 +107,7 @@ recompiler mainFileName importPaths' = do
         writeMainDone False
         -- We only need this gcatch on Windows, but I don't think
         -- it will hurt on Mac/Linux.
-        gcatch recompileTargets (\(_x :: SomeException) -> return ())
+        recompileTargets
         writeMainDone True
         
 
@@ -163,9 +164,13 @@ typecheckTargets onFailure = handleSourceError (\e -> onFailure >> printExceptio
             -- Parse and typecheck modules to trigger any SourceErrors therein
             forM_ graph (typecheckModule <=< parseModule)
 
+catchExceptions :: ExceptionMonad m => m () -> m ()
+catchExceptions a = gcatch a 
+    (\(_x :: SomeException) -> return ())
+
 -- Recompiles the current targets
 recompileTargets :: Ghc ()
-recompileTargets = handleSourceError printException $ do
+recompileTargets =  catchExceptions $ handleSourceError printException $ do
     liftIO . putStrLn $ replicate 25 '*' ++ " Recompiling... " ++ replicate 25 '*'
     -- Get the dependencies of the main target
     graph <- depanal [] False
