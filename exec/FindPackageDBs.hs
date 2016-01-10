@@ -6,6 +6,7 @@ import Data.Maybe
 import System.Directory
 import System.FilePath
 import System.Process
+import System.Environment (lookupEnv)
 import Data.List
 import Data.Char
 import Control.Monad.IO.Class
@@ -67,9 +68,19 @@ getStackDb = do
             return . Just . catMaybes $ map (flip extractKey pathInfo) ["local-pkg-db:", "snapshot-pkg-db:"]
 
 updateDynFlagsWithStackDB :: MonadIO m => DynFlags -> m DynFlags
-updateDynFlagsWithStackDB dflags = 
+updateDynFlagsWithStackDB dflags =
     liftIO getStackDb >>= \case
         Nothing -> return dflags
         Just stackDBs -> do
             let pkgs = map PkgConfFile stackDBs
-            return dflags { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags }
+                dflags' = dflags { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags }
+            maybe (return dflags' ) (nastyHack dflags') =<< liftIO (lookupEnv "HALIVE_STACK_COMPONENT")
+
+    where
+      cmd c = "echo|stack -v ghci " ++ c ++ " 2>&1 >/dev/null |sed -ne 's/ @([^)]*)$//; s/.*Run process: ghc --interactive //p'"
+      nastyHack :: MonadIO m => DynFlags -> String -> m DynFlags
+      nastyHack dflags' component = do
+            ghciArguments <- words <$> liftIO (readProcess "sh" ["-c", cmd component] "")
+            let packageIdArguments = map noLoc $ filter ("-package-id=" `isPrefixOf`) ghciArguments
+            fst' <$> parseDynamicFlagsCmdLine (gopt_set dflags' Opt_HideAllPackages) packageIdArguments
+      fst' (x, _, _) = x
