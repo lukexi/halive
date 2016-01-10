@@ -38,6 +38,13 @@ halive demo/Main.hs
 ```
 Changing values in `Main.hs` or `Green.hs` and saving should live-update the program.
 
+* Note: if you get an error about an ``Ambiguous module name``, you can use this
+  command line instead:
+
+  ``HALIVE_STACK_COMPONENT=halive:test:demo halive demo/Main.hs``
+
+  It will be slower.
+
 Keeping values alive
 --------------------
 
