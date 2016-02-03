@@ -1,4 +1,8 @@
 TODO:
+[ ] Should be able to use SubHalive to slim down Halive.hs even further by
+    using a SubHalive thread, printing exceptions, and running successful HValues 
+    as IO () actions on the main thread (rather than using runStmt)
+
 [ ] New async typechecking context would form a nice basis for a runtime query system
     (run over TCP, with Halive passing the port via an environment variable to Halive.Utils)
 
@@ -41,6 +45,7 @@ TODO:
     Be sure to compare these with ekg, GHC's eventlog.
     
 [ ] Check if we need foreign-store at all; it seems like global MVars would do the trick just as well.
+    (note: I think I tried this and MVars are in fact cleared upon recompilations)
 
 [ ] Can fix Halive breaking with .o files present
     http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile

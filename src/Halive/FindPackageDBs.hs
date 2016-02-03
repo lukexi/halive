@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-}
+
 {-# LANGUAGE LambdaCase #-}
-module FindPackageDBs where
+module Halive.FindPackageDBs where
 import Data.Maybe
 
 import System.Directory
@@ -12,11 +12,6 @@ import Control.Monad.IO.Class
 
 import GHC
 import DynFlags
-
-#if !MIN_VERSION_base(4,8,0)
-import Data.Traversable (traverse)
-import Control.Applicative ((<$>))
-#endif
 
 -- | Extract the sandbox package db directory from the cabal.sandbox.config file.
 --   Exception is thrown if the sandbox config file is broken.

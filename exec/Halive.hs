@@ -2,12 +2,8 @@
 module Halive where
 
 import GHC
-import Linker
-import Packages
 import DynFlags
 import Exception
-import GHC.Paths
-import Outputable
 
 import Data.IORef
 import Control.Monad
@@ -17,23 +13,19 @@ import Control.Monad.IO.Class
 import System.FSNotify
 import System.FilePath
 
-import FindPackageDBs
+import Halive.SubHalive
 
 directoryWatcher :: IO (Chan Event)
 directoryWatcher = do
     let predicate event = case event of
-            -- Modified path _ -> takeExtension path `elem` [".hs", ".vert", ".frag", ".pd"]
-            Modified path _ -> takeExtension path `elem` [".hs"]
+            Modified path _ -> takeExtension path `elem` [".hs", ".vert", ".frag", ".pd"]
+            -- Modified path _ -> takeExtension path `elem` [".hs"]
             _               -> False
     eventChan <- newChan
     _ <- forkIO $ withManager $ \manager -> do
         -- start a watching job (in the background)
         let watchDirectory = "."
-        _stopListening <- watchTreeChan
-            manager
-            watchDirectory
-            predicate
-            eventChan
+        _stopListening <- watchTreeChan manager watchDirectory predicate eventChan
         -- Keep the watcher alive forever
         forever $ threadDelay 10000000
 
@@ -70,7 +62,7 @@ recompiler mainFileName importPaths' = do
         sendTypecheckSignal    = putMVar typecheckLock ()
 
     typecheckSuccessful <- newIORef True
-    _ <- forkOS . withGHCSession mainFileName importPaths' . forever $ do
+    _ <- forkOS . withGHCSession' mainFileName importPaths' . forever $ do
         _ <- waitForTypecheckSignal
         liftIO (writeIORef typecheckSuccessful True)
         let onFailure = liftIO (writeIORef typecheckSuccessful False)
@@ -101,54 +93,26 @@ recompiler mainFileName importPaths' = do
        
     
     -- Start up the GHC session that will compile and run the app
-    withGHCSession mainFileName importPaths' . forever $ do
+    withGHCSession' mainFileName importPaths' . forever $ do
         -- Blocks until the file watcher has told us there is something new to do
         _ <- waitForRecompileSignal
         writeMainDone False
-        -- We only need this gcatch on Windows, but I don't think
-        -- it will hurt on Mac/Linux.
-        recompileTargets
+        recompileTargetMain
         writeMainDone True
-        
 
--- Starts up a GHC session and then runs the given action within it
-withGHCSession :: FilePath -> [FilePath] -> Ghc () -> IO ()
-withGHCSession mainFileName extraImportPaths action = do
-    defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
-        -- Add the main file's path to the import path list
-        let mainFilePath   = dropFileName mainFileName
-            allImportPaths = mainFilePath:extraImportPaths
+-- | Use the default exception handlers, add the main file's directory
+-- as an import path, and always use the main file as a recompilation target
+withGHCSession' :: String -> [FilePath] -> Ghc a -> IO a
+withGHCSession' mainFileName extraImportPaths action = do
+    let mainFilePath   = dropFileName mainFileName
+        allImportPaths = mainFilePath:extraImportPaths
+    defaultErrorHandler defaultFatalMessager defaultFlushOut $
+        withGHCSession allImportPaths NoDebounceFix $ do
+            -- Set the given filename as a compilation target
+            setTargets =<< sequence [guessTarget mainFileName Nothing]
+            action
 
-        -- Get the default dynFlags
-        dflags0 <- getSessionDynFlags
-        
-        -- If there's a sandbox, add its package DB
-        dflags1 <- updateDynFlagsWithCabalSandbox dflags0
 
-        -- If this is a stack project, add its package DBs
-        dflags2 <- updateDynFlagsWithStackDB dflags1
-
-        -- Make sure we're configured for live-reload, and turn off the GHCi sandbox
-        -- since it breaks OpenGL/GUI usage
-        let dflags3 = dflags2 { hscTarget   = HscInterpreted
-                              , ghcLink     = LinkInMemory
-                              , ghcMode     = CompManager
-                              , importPaths = allImportPaths
-                              } `gopt_unset` Opt_GhciSandbox
-        
-        -- We must call setSessionDynFlags before calling initPackages or any other GHC API
-        _ <- setSessionDynFlags dflags3
-
-        -- Initialize the package database
-        (dflags4, _) <- liftIO (initPackages dflags3)
-
-        -- Initialize the dynamic linker
-        liftIO (initDynLinker dflags4)
-
-        -- Set the given filename as a compilation target
-        setTargets =<< sequence [guessTarget mainFileName Nothing]
-
-        action
 
 typecheckTargets :: GhcMonad m => m () -> m ()
 typecheckTargets onFailure = handleSourceError (\e -> onFailure >> printException e) $ do
@@ -164,13 +128,15 @@ typecheckTargets onFailure = handleSourceError (\e -> onFailure >> printExceptio
             -- Parse and typecheck modules to trigger any SourceErrors therein
             forM_ graph (typecheckModule <=< parseModule)
 
-catchExceptions :: ExceptionMonad m => m () -> m ()
-catchExceptions a = gcatch a 
-    (\(_x :: SomeException) -> return ())
+-- | Prints and masks all exceptions
+logCaughtExceptions :: ExceptionMonad m => m () -> m ()
+logCaughtExceptions a = gcatch a 
+    (\(x :: SomeException) -> 
+        liftIO $ putStrLn ("Caught exception during reocmpileTargetMain: " ++ show x))
 
 -- Recompiles the current targets
-recompileTargets :: Ghc ()
-recompileTargets =  catchExceptions $ handleSourceError printException $ do
+recompileTargetMain :: Ghc ()
+recompileTargetMain = logCaughtExceptions $ handleSourceError printException $ do
     liftIO . putStrLn $ replicate 25 '*' ++ " Recompiling... " ++ replicate 25 '*'
     -- Get the dependencies of the main target
     graph <- depanal [] False
@@ -193,15 +159,4 @@ recompileTargets =  catchExceptions $ handleSourceError printException $ do
                 print exception
             RunBreak _ _ _ -> 
                 putStrLn "Breakpoint"
-        
 
-
--- A helper from interactive-diagrams to print out GHC API values, 
--- useful while debugging the API.
--- | Outputs any value that can be pretty-printed using the default style
-output :: (GhcMonad m, MonadIO m) => Outputable a => a -> m ()
-output a = do
-    dfs <- getSessionDynFlags
-    let style = defaultUserStyle
-    let cntx  = initSDocContext dfs style
-    liftIO $ print $ runSDoc (ppr a) cntx
