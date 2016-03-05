@@ -1,3 +1,5 @@
+http://hackage.haskell.org/package/optparse-generic
+
 TODO:
 [ ] Should be able to use SubHalive to slim down Halive.hs even further by
     using a SubHalive thread, printing exceptions, and running successful HValues 

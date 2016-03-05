@@ -37,7 +37,7 @@ startGHC importPaths_ = liftIO $ do
     _ <- forkOS . void . withGHCSession importPaths_ DebounceFix . forever $ do
         CompilationRequest{..} <- readTChanIO ghcChan
         
-        result <- recompileTargets crFilePath crExpressionString
+        result <- recompileExpressionInFile crFilePath crExpressionString
         writeTChanIO crResultTChan result
     return ghcChan
 
@@ -73,8 +73,7 @@ fileModifiedPredicate fileName event = case event of
 
 eventListenerForFile :: FilePath -> IO (Chan Event)
 eventListenerForFile fileName = do
-    fileNameCanon <- canonicalizePath fileName
-    let predicate = fileModifiedPredicate fileNameCanon
+    predicate <- fileModifiedPredicate <$> canonicalizePath fileName
     eventChan <- newChan
     _ <- forkIO . withManager $ \manager -> do
         let watchDirectory = "."

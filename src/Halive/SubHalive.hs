@@ -77,8 +77,8 @@ getCompiledValue :: CompiledValue -> a
 getCompiledValue (CompiledValue r) = unsafeCoerce r
 
 -- | We return the uncoerced HValue, which lets us send polymorphic values back through channels
-recompileTargets :: FilePath -> String -> Ghc (Either [String] CompiledValue)
-recompileTargets fileName expression = 
+recompileExpressionInFile :: FilePath -> String -> Ghc (Either [String] CompiledValue)
+recompileExpressionInFile fileName expression = 
     -- NOTE: handleSourceError doesn't actually seem to do anything, and we use
     -- the IORef + log_action solution instead. The API docs claim 'load' should
     -- throw SourceErrors but it doesn't afaict.
@@ -114,7 +114,7 @@ recompileTargets fileName expression =
 catchExceptions :: ExceptionMonad m => m (Either [String] a) -> m (Either [String] a)
 catchExceptions a = gcatch a 
     (\(_x :: SomeException) -> do
-        liftIO (putStrLn ("Caught exception during recompileTargets: " ++ show _x))
+        liftIO (putStrLn ("Caught exception during recompileExpressionInFile: " ++ show _x))
         return (Left [show _x]))
 
 
