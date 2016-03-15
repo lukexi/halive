@@ -130,11 +130,11 @@ output a = do
 
 logHandler :: IORef String -> LogAction
 logHandler ref dflags severity srcSpan style msg =
-  case severity of
-     SevError   ->  modifyIORef' ref (++ ('\n':printDoc))
-     SevFatal   ->  modifyIORef' ref (++ ('\n':printDoc))
-     SevWarning ->  modifyIORef' ref (++ ('\n':printDoc))
-     _          ->  return () -- ignore the rest
-  where cntx = initSDocContext dflags style
-        locMsg = mkLocMessage severity srcSpan msg
-        printDoc = show (runSDoc locMsg cntx) 
+    case severity of
+       SevError   ->  modifyIORef' ref (++ ('\n':printDoc))
+       SevFatal   ->  modifyIORef' ref (++ ('\n':printDoc))
+       SevWarning ->  modifyIORef' ref (++ ('\n':printDoc))
+       _          ->  return () -- ignore the rest
+    where cntx = initSDocContext dflags style
+          locMsg = mkLocMessage severity srcSpan msg
+          printDoc = show (runSDoc locMsg cntx) 

@@ -37,6 +37,7 @@ library
     Halive.FindPackageDBs
     Halive.SubHalive
     Halive.Recompiler
+    Halive.FileListener
   default-language:    Haskell2010
   ghc-prof-options:    -Wall -O2 -fprof-auto
   ghc-options:         -Wall -O2
