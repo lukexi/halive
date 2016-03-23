@@ -28,6 +28,13 @@ mightExist f = do
     exists <- doesFileExist f
     return $ if exists then (Just f) else (Nothing)
 
+addExtraPkgConfs dflags pkgConfs = dflags 
+    { extraPkgConfs = 
+        let newPkgConfs = map PkgConfFile pkgConfs
+        in (newPkgConfs ++) . extraPkgConfs dflags 
+    }
+
+
 ------------------------
 ---------- Cabal Sandbox
 ------------------------

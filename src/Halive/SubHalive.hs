@@ -21,24 +21,28 @@ import Halive.FindPackageDBs
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
 -- Starts up a GHC session and then runs the given action within it
-withGHCSession :: [FilePath] -> FixDebounce -> Ghc a -> IO a
-withGHCSession importPaths_ debounceFix action = do
+withGHCSession :: [FilePath] -> [FilePath] -> FixDebounce -> Ghc a -> IO a
+withGHCSession importPaths_ packageDBs debounceFix action = do
     -- defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
     runGhc (Just libdir) $ do
         -- Get the default dynFlags
         dflags0 <- getSessionDynFlags
+
+        -- Add passed-in package DBs
+        let dflags1 = addExtraPkgConfs dflags0 packageDBs
         
         -- If there's a sandbox, add its package DB
-        dflags1 <- updateDynFlagsWithCabalSandbox dflags0
+        dflags2 <- updateDynFlagsWithCabalSandbox dflags1
 
         -- If this is a stack project, add its package DBs
-        dflags2 <- updateDynFlagsWithStackDB dflags1
+        dflags3 <- updateDynFlagsWithStackDB dflags2
 
         -- Make sure we're configured for live-reload
-        let dflags3 = dflags2 { hscTarget   = HscInterpreted
+        let dflags4 = dflags3 { hscTarget   = HscInterpreted
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = importPaths_
+                              , verbosity = 5
                               }
                               -- turn off the GHCi sandbox
                               -- since it breaks OpenGL/GUI usage
@@ -47,16 +51,16 @@ withGHCSession importPaths_ debounceFix action = do
                               -- about a half second (i.e., it won't recompile) 
                               -- This fixes that, but probably isn't quite what we want
                               -- since it will cause extra files to be recompiled...
-            dflags4 = if debounceFix == DebounceFix then (dflags3 `gopt_set` Opt_ForceRecomp) else dflags3
+            dflags5 = if debounceFix == DebounceFix then (dflags4 `gopt_set` Opt_ForceRecomp) else dflags4
         
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
-        _ <- setSessionDynFlags dflags4
+        _ <- setSessionDynFlags dflags5
 
         -- Initialize the package database
-        (dflags5, _) <- liftIO (initPackages dflags4)
+        (dflags6, _) <- liftIO (initPackages dflags5)
 
         -- Initialize the dynamic linker
-        liftIO (initDynLinker dflags5)
+        liftIO (initDynLinker dflags6)
 
         
 

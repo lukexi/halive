@@ -21,11 +21,11 @@ data CompilationRequest = CompilationRequest
 
 type CompilationResult = Either [String] CompiledValue
 
-startGHC :: MonadIO m => [FilePath] -> m (TChan CompilationRequest)
-startGHC importPaths_ = liftIO $ do
+startGHC :: MonadIO m => [FilePath] -> [FilePath] -> m (TChan CompilationRequest)
+startGHC importPaths_ packageDBs = liftIO $ do
     ghcChan <- newTChanIO
 
-    _ <- forkOS . void . withGHCSession importPaths_ DebounceFix . forever $ do
+    _ <- forkOS . void . withGHCSession importPaths_ packageDBs DebounceFix . forever $ do
         CompilationRequest{..} <- readTChanIO ghcChan
         liftIO . putStrLn $ "Compilation request!"
         

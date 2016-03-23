@@ -107,7 +107,7 @@ withGHCSession' mainFileName extraImportPaths action = do
     let mainFilePath   = dropFileName mainFileName
         allImportPaths = mainFilePath:extraImportPaths
     defaultErrorHandler defaultFatalMessager defaultFlushOut $
-        withGHCSession allImportPaths NoDebounceFix $ do
+        withGHCSession allImportPaths [] NoDebounceFix $ do
             -- Set the given filename as a compilation target
             setTargets =<< sequence [guessTarget mainFileName Nothing]
             action
