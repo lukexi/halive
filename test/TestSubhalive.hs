@@ -5,7 +5,7 @@ import Control.Monad
 
 main :: IO a
 main = do
-    ghc <- startGHC []
+    ghc <- startGHC defaultGHCSessionConfig
 
     fooRecompiler <- recompilerForExpression ghc "test/TestFileFoo.hs" "foo"
     barRecompiler <- recompilerForExpression ghc "test/TestFileBar.hs" "bar"

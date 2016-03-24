@@ -8,9 +8,6 @@ import Control.Concurrent.STM
 import Control.Concurrent
 import Control.Monad.Trans
 import Control.Monad
-import System.FSNotify
-import System.Directory
-import System.FilePath
 
 data CompilationRequest = CompilationRequest
     { crFilePath         :: FilePath
@@ -21,11 +18,11 @@ data CompilationRequest = CompilationRequest
 
 type CompilationResult = Either [String] CompiledValue
 
-startGHC :: MonadIO m => [FilePath] -> [FilePath] -> m (TChan CompilationRequest)
-startGHC importPaths_ packageDBs = liftIO $ do
+startGHC :: MonadIO m => GHCSessionConfig -> m (TChan CompilationRequest)
+startGHC ghcSessionConfig = liftIO $ do
     ghcChan <- newTChanIO
 
-    _ <- forkOS . void . withGHCSession importPaths_ packageDBs DebounceFix . forever $ do
+    _ <- forkOS . void . withGHCSession ghcSessionConfig . forever $ do
         CompilationRequest{..} <- readTChanIO ghcChan
         liftIO . putStrLn $ "Compilation request!"
         

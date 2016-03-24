@@ -105,9 +105,12 @@ recompiler mainFileName importPaths' = do
 withGHCSession' :: String -> [FilePath] -> Ghc a -> IO a
 withGHCSession' mainFileName extraImportPaths action = do
     let mainFilePath   = dropFileName mainFileName
-        allImportPaths = mainFilePath:extraImportPaths
+        ghcSessionConfig = defaultGHCSessionConfig
+            { gscImportPaths = mainFilePath:extraImportPaths
+            , gscFixDebounce = NoDebounceFix
+            }
     defaultErrorHandler defaultFatalMessager defaultFlushOut $
-        withGHCSession allImportPaths [] NoDebounceFix $ do
+        withGHCSession ghcSessionConfig $ do
             -- Set the given filename as a compilation target
             setTargets =<< sequence [guessTarget mainFileName Nothing]
             action
