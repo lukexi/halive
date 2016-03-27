@@ -24,7 +24,7 @@ startGHC ghcSessionConfig = liftIO $ do
 
     _ <- forkOS . void . withGHCSession ghcSessionConfig . forever $ do
         CompilationRequest{..} <- readTChanIO ghcChan
-        liftIO . putStrLn $ "Compilation request!"
+        --liftIO . putStrLn $ "SubHalive recompiling: " ++ show (crFilePath, crExpressionString)
         
         result <- recompileExpressionInFile crFilePath crExpressionString
         writeTChanIO crResultTChan result

@@ -57,7 +57,7 @@ withGHCSession GHCSessionConfig{..} action = do
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
-                              , verbosity = 5
+                              --, verbosity = 5
                               }
                               -- turn off the GHCi sandbox
                               -- since it breaks OpenGL/GUI usage
@@ -73,13 +73,17 @@ withGHCSession GHCSessionConfig{..} action = do
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
         _ <- setSessionDynFlags dflags5
 
+        -- NOTE: I've disabled these init calls as they seem to happen implicitly,
+        -- but searching for initDynLinker online suggests it may be required
+        -- for certain configurations, so if trouble arises try turning them back on.
+        -- (they don't hurt anything but slow startup)
+
         -- Initialize the package database
-        (dflags6, _) <- liftIO (initPackages dflags5)
+        --(dflags6, _) <- liftIO (initPackages dflags5)
 
         -- Initialize the dynamic linker
-        liftIO (initDynLinker dflags6)
+        --liftIO (initDynLinker dflags6)
 
-        
 
         action
 
