@@ -13,6 +13,10 @@ data CompilationRequest = CompilationRequest
     { crFilePath         :: FilePath
     , crExpressionString :: String
     , crResultTChan      :: TChan CompilationResult
+    , crFileContents     :: Maybe String -- This is intentionally lazy, since we want to evaluate the string on the SubHalive thread.
+                                         -- (as it may be e.g. a TextSeq that needs conversion)
+                                         -- In the future, we may want to pass GHC's StringBuffer type here instead, and construct those
+                                         -- in a smarter way.
     }
 
 
@@ -26,7 +30,7 @@ startGHC ghcSessionConfig = liftIO $ do
         CompilationRequest{..} <- readTChanIO ghcChan
         --liftIO . putStrLn $ "SubHalive recompiling: " ++ show (crFilePath, crExpressionString)
         
-        result <- recompileExpressionInFile crFilePath crExpressionString
+        result <- recompileExpressionInFile crFilePath crFileContents crExpressionString
         writeTChanIO crResultTChan result
     return ghcChan
 
@@ -41,6 +45,7 @@ recompilerForExpression ghcChan filePath expressionString = liftIO $ do
             { crFilePath         = filePath
             , crExpressionString = expressionString 
             , crResultTChan      = resultTChan
+            , crFileContents     = Nothing -- Let GHC read the file contents since we're responding to a filesystem event here
             }
 
     fileEventListener <- eventListenerForFile filePath
@@ -50,7 +55,8 @@ recompilerForExpression ghcChan filePath expressionString = liftIO $ do
 
     _ <- forkIO . forever $ do
         _ <- readTChanIO fileEventListener
-        writeTChanIO ghcChan compilationRequest
+        putStrLn "WARNING, IGNORING REQUEST TO RECOMPILE " ++ show (filePath, expressionString) ++ " FROM FILE WHILE TESTING STRINGBUFFER FILECONTENTS PASSING"
+        --writeTChanIO ghcChan compilationRequest
 
     return resultTChan
 

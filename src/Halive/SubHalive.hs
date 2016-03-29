@@ -12,10 +12,12 @@ import HscTypes
 import GHC.Paths
 import Outputable
 import Unsafe.Coerce
+import StringBuffer
 
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.IORef
+import Data.Time
 import Halive.FindPackageDBs
 
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
@@ -101,15 +103,21 @@ newtype CompiledValue = CompiledValue HValue
 getCompiledValue :: CompiledValue -> a
 getCompiledValue (CompiledValue r) = unsafeCoerce r
 
+fileContentsStringToBuffer mFileContents = forM mFileContents $ \fileContents -> do
+    now <- liftIO getCurrentTime
+    return (stringToStringBuffer fileContents, now)
+
 -- | We return the uncoerced HValue, which lets us send polymorphic values back through channels
-recompileExpressionInFile :: FilePath -> String -> Ghc (Either [String] CompiledValue)
-recompileExpressionInFile fileName expression = 
+recompileExpressionInFile :: FilePath -> Maybe String -> String -> Ghc (Either [String] CompiledValue)
+recompileExpressionInFile fileName mFileContents expression = 
     -- NOTE: handleSourceError doesn't actually seem to do anything, and we use
     -- the IORef + log_action solution instead. The API docs claim 'load' should
     -- throw SourceErrors but it doesn't afaict.
     catchExceptions . handleSourceError (fmap Left . gatherErrors) $ do
 
-        setTargets =<< sequence [guessTarget fileName Nothing]
+        target <- guessTarget fileName Nothing
+        mFileContentsBuffer <- fileContentsStringToBuffer mFileContents
+        setTargets [target { targetContents = mFileContentsBuffer }]
 
         errorsRef <- liftIO (newIORef "")
         dflags <- getSessionDynFlags

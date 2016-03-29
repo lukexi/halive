@@ -53,7 +53,8 @@ library
     process,
     transformers,
     directory,
-    stm
+    stm, 
+    time
 
 
 executable halive
