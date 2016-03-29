@@ -55,7 +55,7 @@ recompilerForExpression ghcChan filePath expressionString = liftIO $ do
 
     _ <- forkIO . forever $ do
         _ <- readTChanIO fileEventListener
-        putStrLn "WARNING, IGNORING REQUEST TO RECOMPILE " ++ show (filePath, expressionString) ++ " FROM FILE WHILE TESTING STRINGBUFFER FILECONTENTS PASSING"
+        putStrLn $ "WARNING, IGNORING REQUEST TO RECOMPILE " ++ show (filePath, expressionString) ++ " FROM FILE WHILE TESTING STRINGBUFFER FILECONTENTS PASSING"
         --writeTChanIO ghcChan compilationRequest
 
     return resultTChan
