@@ -39,6 +39,7 @@ eventListenerForFile fileName = do
         forever (threadDelay 10000000)
     return eventChan
 
+onFileEvent :: MonadIO m => TChan a -> m () -> m ()
 onFileEvent eventChan action = 
     tryReadTChanIO eventChan >>= \case
         Just _  -> action

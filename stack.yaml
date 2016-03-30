@@ -1,4 +1,7 @@
 flags: {}
 packages:
 - '.'
-resolver: nightly-2016-01-10
+# This is http://github.com/lukexi/bindings-GLFW on the win-halive-fix branch
+# to fix a segfault when calling GLFW.init from within Halive
+- '../bindings-GLFW'
+resolver: nightly-2016-02-02

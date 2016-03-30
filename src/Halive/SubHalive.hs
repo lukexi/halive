@@ -3,8 +3,6 @@
 module Halive.SubHalive where
 
 import GHC
-import Linker
-import Packages
 import DynFlags
 import Exception
 import ErrUtils
@@ -13,7 +11,8 @@ import GHC.Paths
 import Outputable
 import Unsafe.Coerce
 import StringBuffer
-
+--import Packages
+--import Linker
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.IORef
@@ -80,10 +79,8 @@ withGHCSession GHCSessionConfig{..} action = do
         -- for certain configurations, so if trouble arises try turning them back on.
         -- (they don't hurt anything but slow startup)
 
-        -- Initialize the package database
+        -- Initialize the package database and dynamic linker
         --(dflags6, _) <- liftIO (initPackages dflags5)
-
-        -- Initialize the dynamic linker
         --liftIO (initDynLinker dflags6)
 
 
@@ -103,6 +100,7 @@ newtype CompiledValue = CompiledValue HValue
 getCompiledValue :: CompiledValue -> a
 getCompiledValue (CompiledValue r) = unsafeCoerce r
 
+fileContentsStringToBuffer :: (MonadIO m) => Maybe String -> m (Maybe (StringBuffer, UTCTime))
 fileContentsStringToBuffer mFileContents = forM mFileContents $ \fileContents -> do
     now <- liftIO getCurrentTime
     return (stringToStringBuffer fileContents, now)

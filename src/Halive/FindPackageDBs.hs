@@ -28,6 +28,7 @@ mightExist f = do
     exists <- doesFileExist f
     return $ if exists then (Just f) else (Nothing)
 
+addExtraPkgConfs :: DynFlags -> [FilePath] -> DynFlags
 addExtraPkgConfs dflags pkgConfs = dflags 
     { extraPkgConfs = 
         let newPkgConfs = map PkgConfFile pkgConfs
