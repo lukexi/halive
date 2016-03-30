@@ -135,7 +135,7 @@ typecheckTargets onFailure = handleSourceError (\e -> onFailure >> printExceptio
 logCaughtExceptions :: ExceptionMonad m => m () -> m ()
 logCaughtExceptions a = gcatch a 
     (\(x :: SomeException) -> 
-        liftIO $ putStrLn ("Caught exception during reocmpileTargetMain: " ++ show x))
+        liftIO $ putStrLn ("Caught exception during recompileTargetMain: " ++ show x))
 
 -- Recompiles the current targets
 recompileTargetMain :: Ghc ()
