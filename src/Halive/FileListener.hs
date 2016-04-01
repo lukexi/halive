@@ -20,7 +20,7 @@ data ShouldReadFile = ReadFileOnEvents | JustReportEvents deriving (Eq, Show)
 
 data FileEventListener = FileEventListener 
     { felEventTChan           :: TChan (Either FSNotify.Event String)
-    , felIgnoreNextEventsNear :: TMVar UTCTime 
+    , felIgnoreNextEventsNear :: TVar (Maybe UTCTime) 
     } 
 
 atomicallyIO :: MonadIO m => STM a -> m a
@@ -44,14 +44,14 @@ eventListenerForFile :: (MonadIO m) => FilePath -> ShouldReadFile -> m FileEvent
 eventListenerForFile fileName shouldReadFile = liftIO $ do
     predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     eventChan        <- newTChanIO
-    ignoreEventsNear <- newEmptyTMVarIO
+    ignoreEventsNear <- newTVarIO Nothing
 
     -- If an ignore time is set, ignore file changes for the next 100 ms
     let ignoreTime = 0.1
     _ <- forkIO . withManager $ \manager -> do
         let watchDirectory = takeDirectory fileName
         _stop <- watchTree manager watchDirectory predicate $ \e -> do
-            mTimeToIgnore <- atomically $ tryTakeTMVar ignoreEventsNear
+            mTimeToIgnore <- atomically $ readTVar ignoreEventsNear
             let timeOfEvent = eventTime e
                 shouldIgnore = case mTimeToIgnore of
                     Nothing -> False
@@ -71,7 +71,7 @@ setIgnoreTimeNow :: MonadIO m => FileEventListener -> m ()
 setIgnoreTimeNow fileEventListener = setIgnoreTime fileEventListener =<< liftIO getCurrentTime
 
 setIgnoreTime :: MonadIO m => FileEventListener -> UTCTime -> m ()
-setIgnoreTime FileEventListener{..} time = void . liftIO . atomically $ swapTMVar felIgnoreNextEventsNear time
+setIgnoreTime FileEventListener{..} time = void . liftIO . atomically $ writeTVar felIgnoreNextEventsNear (Just time)
 
 readFileEvent :: MonadIO m => FileEventListener -> m (Either FSNotify.Event String)
 readFileEvent FileEventListener{..} = readTChanIO felEventTChan
