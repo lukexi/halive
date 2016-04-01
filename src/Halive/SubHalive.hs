@@ -22,19 +22,32 @@ import Halive.FindPackageDBs
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
 data GHCSessionConfig = GHCSessionConfig
-    { gscFixDebounce :: FixDebounce
-    , gscImportPaths :: [FilePath]
-    , gscPackageDBs  :: [FilePath]
-    , gscLibDir      :: FilePath
+    { gscFixDebounce        :: FixDebounce
+    , gscImportPaths        :: [FilePath]
+    , gscPackageDBs         :: [FilePath]
+    , gscLibDir             :: FilePath
+    , gscLanguageExtensions :: [ExtensionFlag]
     }
+
+-- Probably shouldn't be here, but needed for Rumpus
+defaultLanguageExtensions = 
+    [ Opt_FlexibleContexts
+    , Opt_RecordWildCards
+    , Opt_ViewPatterns
+    , Opt_LambdaCase
+    , Opt_MultiWayIf
+    , Opt_BangPatterns
+    ]
 
 defaultGHCSessionConfig :: GHCSessionConfig
 defaultGHCSessionConfig = GHCSessionConfig 
     { gscFixDebounce = NoDebounceFix
     , gscImportPaths = []
     , gscPackageDBs  = []
+    , gscLanguageExtensions = defaultLanguageExtensions
     , gscLibDir = libdir
     }
+
 
 -- Starts up a GHC session and then runs the given action within it
 withGHCSession :: GHCSessionConfig -> Ghc a -> IO a
@@ -70,9 +83,9 @@ withGHCSession GHCSessionConfig{..} action = do
             dflags5 = if gscFixDebounce == DebounceFix 
                         then dflags4 `gopt_set` Opt_ForceRecomp
                         else dflags4
-        
+            dflags6 = foldl xopt_set dflags5 gscLanguageExtensions
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
-        _ <- setSessionDynFlags dflags5
+        _ <- setSessionDynFlags dflags6
 
         -- NOTE: I've disabled these init calls as they seem to happen implicitly,
         -- but searching for initDynLinker online suggests it may be required
@@ -80,9 +93,8 @@ withGHCSession GHCSessionConfig{..} action = do
         -- (they don't hurt anything but slow startup)
 
         -- Initialize the package database and dynamic linker
-        --(dflags6, _) <- liftIO (initPackages dflags5)
-        --liftIO (initDynLinker dflags6)
-
+        --(dflags7, _) <- liftIO (initPackages dflags6)
+        --liftIO (initDynLinker dflags7)
 
         action
 
