@@ -35,9 +35,12 @@ startGHC ghcSessionConfig = liftIO $ do
     return ghcChan
 
 
+data Recompiler = Recompiler 
+    { recResultTChan :: TChan CompilationResult
+    , recFileEventListener :: FileEventListener
+    }
 
-
-recompilerForExpression :: MonadIO m => (TChan CompilationRequest) -> FilePath -> String -> m (TChan CompilationResult)
+recompilerForExpression :: MonadIO m => (TChan CompilationRequest) -> FilePath -> String -> m Recompiler
 recompilerForExpression ghcChan filePath expressionString = liftIO $ do
 
     resultTChan <- newTChanIO
@@ -48,15 +51,14 @@ recompilerForExpression ghcChan filePath expressionString = liftIO $ do
             , crFileContents     = Nothing -- Let GHC read the file contents since we're responding to a filesystem event here
             }
 
-    fileEventListener <- eventListenerForFile filePath
+    fileEventListener <- eventListenerForFile filePath JustReportEvents
     
     -- Compile immediately
     writeTChanIO ghcChan compilationRequest
 
     _ <- forkIO . forever $ do
-        _ <- readTChanIO fileEventListener
-        putStrLn $ "WARNING, IGNORING REQUEST TO RECOMPILE " ++ show (filePath, expressionString) ++ " FROM FILE WHILE TESTING STRINGBUFFER FILECONTENTS PASSING"
-        --writeTChanIO ghcChan compilationRequest
+        _ <- readFileEvent fileEventListener
+        writeTChanIO ghcChan compilationRequest
 
-    return resultTChan
+    return Recompiler { recResultTChan = resultTChan, recFileEventListener = fileEventListener }
 
