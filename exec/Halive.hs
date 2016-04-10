@@ -151,7 +151,9 @@ recompileTargetMain = logCaughtExceptions $ handleSourceError printException $ d
         forM_ graph (typecheckModule <=< parseModule)
         
         -- Load the dependencies of the main target
-        setContext $ map (IIModule . ms_mod_name) graph
+        --setContext $ map (IIModule . ms_mod_name) graph
+        setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
+
 
         -- Run the target file's "main" function
         rr <- runStmt "main" RunToCompletion

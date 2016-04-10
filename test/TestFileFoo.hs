@@ -1,1 +1,3 @@
-foo = "I AM THE FOO"
+module Foo where
+
+foo = "Here's foo"

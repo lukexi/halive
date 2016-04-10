@@ -1,1 +1,3 @@
-bar = "Bar"
+module Bar where
+
+bar = "Beara"

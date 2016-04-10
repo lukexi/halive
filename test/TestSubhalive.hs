@@ -12,9 +12,9 @@ main = do
 
     forever $ do
         result <- atomically 
-            (readTChan fooRecompiler
+            (readTChan (recResultTChan fooRecompiler)
             `orElse`
-             readTChan barRecompiler)
+             readTChan (recResultTChan barRecompiler))
         case result of
             Left errors -> putStrLn (concat errors)
             Right value -> putStrLn (getCompiledValue value)

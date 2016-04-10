@@ -27,9 +27,11 @@ data GHCSessionConfig = GHCSessionConfig
     , gscPackageDBs         :: [FilePath]
     , gscLibDir             :: FilePath
     , gscLanguageExtensions :: [ExtensionFlag]
+    , gscCompilationMode    :: HscTarget
     }
 
 -- Probably shouldn't be here, but needed for Rumpus
+defaultLanguageExtensions :: [ExtensionFlag]
 defaultLanguageExtensions = 
     [ Opt_FlexibleContexts
     , Opt_RecordWildCards
@@ -41,11 +43,13 @@ defaultLanguageExtensions =
 
 defaultGHCSessionConfig :: GHCSessionConfig
 defaultGHCSessionConfig = GHCSessionConfig 
-    { gscFixDebounce = NoDebounceFix
+    { gscFixDebounce = DebounceFix
     , gscImportPaths = []
     , gscPackageDBs  = []
     , gscLanguageExtensions = defaultLanguageExtensions
     , gscLibDir = libdir
+    --, gscCompilationMode = HscInterpreted
+    , gscCompilationMode = HscAsm
     }
 
 
@@ -67,7 +71,8 @@ withGHCSession GHCSessionConfig{..} action = do
         dflags3 <- updateDynFlagsWithStackDB dflags2
 
         -- Make sure we're configured for live-reload
-        let dflags4 = dflags3 { hscTarget   = HscInterpreted
+        let dflags4 = dflags3 { hscTarget   = gscCompilationMode
+                              , optLevel    = 2
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
@@ -124,11 +129,10 @@ recompileExpressionInFile fileName mFileContents expression =
     -- the IORef + log_action solution instead. The API docs claim 'load' should
     -- throw SourceErrors but it doesn't afaict.
     catchExceptions . handleSourceError (fmap Left . gatherErrors) $ do
-
         target <- guessTarget fileName Nothing
         mFileContentsBuffer <- fileContentsStringToBuffer mFileContents
         setTargets [target { targetContents = mFileContentsBuffer }]
-
+        
         errorsRef <- liftIO (newIORef "")
         dflags <- getSessionDynFlags
         _ <- setSessionDynFlags dflags { log_action = logHandler errorsRef }
@@ -148,8 +152,11 @@ recompileExpressionInFile fileName mFileContents expression =
                 forM_ graph (typecheckModule <=< parseModule)
                 
                 -- Load the dependencies of the main target
-                setContext (IIModule . ms_mod_name <$> graph)
-
+                -- This brings all top-level definitions into scope (whether exported or not), 
+                -- but only works on interpreted modules 
+                --setContext (IIModule . ms_mod_name <$> graph)
+                setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
+                
                 result <- compileExpr expression
 
                 return (Right (CompiledValue result))
