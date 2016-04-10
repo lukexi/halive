@@ -54,8 +54,8 @@ library
     transformers,
     directory,
     stm, 
-    time
-
+    time,
+    signal
 
 executable halive
   main-is:             main.hs

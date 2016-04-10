@@ -26,7 +26,11 @@ startGHC :: MonadIO m => GHCSessionConfig -> m (TChan CompilationRequest)
 startGHC ghcSessionConfig = liftIO $ do
     ghcChan <- newTChanIO
 
-    _ <- forkOS . void . withGHCSession ghcSessionConfig . forever $ do
+    -- Grab this thread's ID (need to run this on the main thread, of course)
+    mainThreadID <- myThreadId
+    
+
+    _ <- forkOS . void . withGHCSession mainThreadID ghcSessionConfig . forever $ do
         CompilationRequest{..} <- readTChanIO ghcChan
         --liftIO . putStrLn $ "SubHalive recompiling: " ++ show (crFilePath, crExpressionString)
         

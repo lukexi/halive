@@ -61,8 +61,9 @@ recompiler mainFileName importPaths' = do
         waitForTypecheckSignal = liftIO (takeMVar typecheckLock)
         sendTypecheckSignal    = putMVar typecheckLock ()
 
+    mainThreadID <- myThreadId    
     typecheckSuccessful <- newIORef True
-    _ <- forkOS . withGHCSession' mainFileName importPaths' . forever $ do
+    _ <- forkOS . withGHCSession' mainThreadID mainFileName importPaths' . forever $ do
         _ <- waitForTypecheckSignal
         liftIO (writeIORef typecheckSuccessful True)
         let onFailure = liftIO (writeIORef typecheckSuccessful False)
@@ -93,7 +94,7 @@ recompiler mainFileName importPaths' = do
        
     
     -- Start up the GHC session that will compile and run the app
-    withGHCSession' mainFileName importPaths' . forever $ do
+    withGHCSession' mainThreadID mainFileName importPaths' . forever $ do
         -- Blocks until the file watcher has told us there is something new to do
         _ <- waitForRecompileSignal
         writeMainDone False
@@ -102,17 +103,20 @@ recompiler mainFileName importPaths' = do
 
 -- | Use the default exception handlers, add the main file's directory
 -- as an import path, and always use the main file as a recompilation target
-withGHCSession' :: String -> [FilePath] -> Ghc a -> IO a
-withGHCSession' mainFileName extraImportPaths action = do
+withGHCSession' :: ThreadId -> String -> [FilePath] -> Ghc a -> IO a
+withGHCSession' mainThreadID mainFileName extraImportPaths action = do
     let mainFilePath   = dropFileName mainFileName
         ghcSessionConfig = defaultGHCSessionConfig
             { gscImportPaths = mainFilePath:extraImportPaths
             , gscFixDebounce = NoDebounceFix
             }
     defaultErrorHandler defaultFatalMessager defaultFlushOut $
-        withGHCSession ghcSessionConfig $ do
+        withGHCSession mainThreadID ghcSessionConfig $ do
             -- Set the given filename as a compilation target
-            setTargets =<< sequence [guessTarget mainFileName Nothing]
+            -- Prepend a '*' to prevent GHC from trying to load from any previously compiled object files
+            -- see http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
+            let mainFileNameWithStar = '*':mainFileName
+            setTargets =<< sequence [guessTarget mainFileNameWithStar Nothing]
             action
 
 

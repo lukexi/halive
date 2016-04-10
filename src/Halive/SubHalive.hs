@@ -19,6 +19,9 @@ import Data.IORef
 import Data.Time
 import Halive.FindPackageDBs
 
+import Control.Concurrent
+import System.Signal
+
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
 data GHCSessionConfig = GHCSessionConfig
@@ -48,16 +51,20 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscPackageDBs  = []
     , gscLanguageExtensions = defaultLanguageExtensions
     , gscLibDir = libdir
-    --, gscCompilationMode = HscInterpreted
-    , gscCompilationMode = HscAsm
+    , gscCompilationMode = HscInterpreted
+    --, gscCompilationMode = HscAsm
     }
 
 
 -- Starts up a GHC session and then runs the given action within it
-withGHCSession :: GHCSessionConfig -> Ghc a -> IO a
-withGHCSession GHCSessionConfig{..} action = do
+withGHCSession :: ThreadId -> GHCSessionConfig -> Ghc a -> IO a
+withGHCSession mainThreadID GHCSessionConfig{..} action = do
+    -- Work around https://ghc.haskell.org/trac/ghc/ticket/4162
+    let restoreControlC action = do
+            liftIO $ installHandler sigINT (\_signal -> killThread mainThreadID)
+            action
     -- defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
-    runGhc (Just gscLibDir) $ do
+    runGhc (Just gscLibDir) . restoreControlC $ do
         -- Get the default dynFlags
         dflags0 <- getSessionDynFlags
 
@@ -129,7 +136,9 @@ recompileExpressionInFile fileName mFileContents expression =
     -- the IORef + log_action solution instead. The API docs claim 'load' should
     -- throw SourceErrors but it doesn't afaict.
     catchExceptions . handleSourceError (fmap Left . gatherErrors) $ do
-        target <- guessTarget fileName Nothing
+        -- Prepend a '*' to prevent GHC from trying to load from any previously compiled object files
+        -- see http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
+        target <- guessTarget ('*':fileName) Nothing
         mFileContentsBuffer <- fileContentsStringToBuffer mFileContents
         setTargets [target { targetContents = mFileContentsBuffer }]
         
