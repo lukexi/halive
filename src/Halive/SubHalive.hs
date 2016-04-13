@@ -79,7 +79,7 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
 
         -- Make sure we're configured for live-reload
         let dflags4 = dflags3 { hscTarget   = gscCompilationMode
-                              , optLevel    = 2
+                              , optLevel    = if gscCompilationMode == HscAsm then 2 else 0
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
