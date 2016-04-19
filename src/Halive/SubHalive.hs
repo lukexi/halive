@@ -11,8 +11,10 @@ import GHC.Paths
 import Outputable
 import Unsafe.Coerce
 import StringBuffer
---import Packages
---import Linker
+
+import Packages
+import Linker
+
 import Control.Monad
 import Control.Monad.IO.Class
 import Data.IORef
@@ -24,13 +26,15 @@ import System.Signal
 
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
+data CompliationMode = Interpreted | Compiled deriving Eq
+
 data GHCSessionConfig = GHCSessionConfig
     { gscFixDebounce        :: FixDebounce
     , gscImportPaths        :: [FilePath]
     , gscPackageDBs         :: [FilePath]
     , gscLibDir             :: FilePath
     , gscLanguageExtensions :: [ExtensionFlag]
-    , gscCompilationMode    :: HscTarget
+    , gscCompilationMode    :: CompliationMode
     }
 
 -- Probably shouldn't be here, but needed for Rumpus
@@ -51,8 +55,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscPackageDBs  = []
     , gscLanguageExtensions = defaultLanguageExtensions
     , gscLibDir = libdir
-    , gscCompilationMode = HscInterpreted
-    --, gscCompilationMode = HscAsm
+    , gscCompilationMode = Interpreted
     }
 
 
@@ -78,8 +81,8 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         dflags3 <- updateDynFlagsWithStackDB dflags2
 
         -- Make sure we're configured for live-reload
-        let dflags4 = dflags3 { hscTarget   = gscCompilationMode
-                              , optLevel    = if gscCompilationMode == HscAsm then 2 else 0
+        let dflags4 = dflags3 { hscTarget   = if gscCompilationMode == Compiled then HscAsm else HscInterpreted 
+                              , optLevel    = if gscCompilationMode == Compiled then 2 else 0
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
@@ -88,10 +91,10 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                               -- turn off the GHCi sandbox
                               -- since it breaks OpenGL/GUI usage
                               `gopt_unset` Opt_GhciSandbox 
-                              -- GHC seems to try to "debounce" compilations within
-                              -- about a half second (i.e., it won't recompile) 
-                              -- This fixes that, but probably isn't quite what we want
-                              -- since it will cause extra files to be recompiled...
+            -- GHC seems to try to "debounce" compilations within
+            -- about a half second (i.e., it won't recompile) 
+            -- This fixes that, but probably isn't quite what we want
+            -- since it will cause extra files to be recompiled...
             dflags5 = if gscFixDebounce == DebounceFix 
                         then dflags4 `gopt_set` Opt_ForceRecomp
                         else dflags4
@@ -99,14 +102,10 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
         _ <- setSessionDynFlags dflags6
 
-        -- NOTE: I've disabled these init calls as they seem to happen implicitly,
-        -- but searching for initDynLinker online suggests it may be required
-        -- for certain configurations, so if trouble arises try turning them back on.
-        -- (they don't hurt anything but slow startup)
-
-        -- Initialize the package database and dynamic linker
-        --(dflags7, _) <- liftIO (initPackages dflags6)
-        --liftIO (initDynLinker dflags7)
+        -- Initialize the package database and dynamic linker.
+        -- Explicitly calling these avoids crashes on some of my machines.
+        (dflags7, _) <- liftIO (initPackages dflags6)
+        liftIO (initDynLinker dflags7)
 
         action
 
