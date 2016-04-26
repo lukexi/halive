@@ -86,6 +86,11 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
+
+                              , objectDir = Just ".halive"
+                              , hiDir     = Just ".halive"
+                              , stubDir   = Just ".halive"
+                              , dumpDir   = Just ".halive"
                               --, verbosity = 5
                               }
                               -- turn off the GHCi sandbox

@@ -109,6 +109,7 @@ withGHCSession' mainThreadID mainFileName extraImportPaths action = do
         ghcSessionConfig = defaultGHCSessionConfig
             { gscImportPaths = mainFilePath:extraImportPaths
             , gscFixDebounce = NoDebounceFix
+            --, gscCompilationMode = Compiled
             }
     defaultErrorHandler defaultFatalMessager defaultFlushOut $
         withGHCSession mainThreadID ghcSessionConfig $ do
