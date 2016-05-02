@@ -37,7 +37,6 @@ data GHCSessionConfig = GHCSessionConfig
     , gscLibDir             :: FilePath
     , gscLanguageExtensions :: [ExtensionFlag]
     , gscCompilationMode    :: CompliationMode
-    , gscInitialFile        :: 
     }
 
 -- Probably shouldn't be here, but needed for Rumpus
@@ -95,7 +94,6 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
-
                               --, objectDir = Just ".halive"
                               --, hiDir     = Just ".halive"
                               --, stubDir   = Just ".halive"
