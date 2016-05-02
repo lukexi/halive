@@ -42,13 +42,18 @@ fileModifiedPredicate fileName event = case event of
 
 eventListenerForFile :: (MonadIO m) => FilePath -> ShouldReadFile -> m FileEventListener
 eventListenerForFile fileName shouldReadFile = liftIO $ do
-    predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     eventChan        <- newTChanIO
     ignoreEventsNear <- newTVarIO Nothing
 
+    --_ <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
+
+    return FileEventListener { felEventTChan = eventChan, felIgnoreNextEventsNear = ignoreEventsNear }
+
+forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
+    predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     -- If an ignore time is set, ignore file changes for the next 100 ms
     let ignoreTime = 0.1
-    _ <- forkIO . withManager $ \manager -> do
+    forkIO . withManager $ \manager -> do
         let watchDirectory = takeDirectory fileName
         _stop <- watchTree manager watchDirectory predicate $ \e -> do
             mTimeToIgnore <- atomically $ readTVar ignoreEventsNear
@@ -65,7 +70,6 @@ eventListenerForFile fileName shouldReadFile = liftIO $ do
                     else writeTChanIO eventChan (Left e)
 
         forever (threadDelay 10000000)
-    return FileEventListener { felEventTChan = eventChan, felIgnoreNextEventsNear = ignoreEventsNear }
 
 setIgnoreTimeNow :: MonadIO m => FileEventListener -> m ()
 setIgnoreTimeNow fileEventListener = setIgnoreTime fileEventListener =<< liftIO getCurrentTime

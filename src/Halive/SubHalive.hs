@@ -14,6 +14,7 @@ import StringBuffer
 
 import Packages
 import Linker
+import Module
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -23,6 +24,7 @@ import Halive.FindPackageDBs
 
 import Control.Concurrent
 import System.Signal
+import Data.Dynamic
 
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
@@ -35,6 +37,7 @@ data GHCSessionConfig = GHCSessionConfig
     , gscLibDir             :: FilePath
     , gscLanguageExtensions :: [ExtensionFlag]
     , gscCompilationMode    :: CompliationMode
+    , gscInitialFile        :: 
     }
 
 -- Probably shouldn't be here, but needed for Rumpus
@@ -58,6 +61,15 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscCompilationMode = Interpreted
     }
 
+--pkgConfRefToString = \case
+--    GlobalPkgConf -> "GlobalPkgConf" 
+--    UserPkgConf -> "UserPkgConf" 
+--    PkgConfFile file -> "PkgConfFile " ++ show file
+
+--extraPkgConfsToString dflags = show $ map pkgConfRefToString $ extraPkgConfs dflags $ []
+
+logIO :: MonadIO m => String -> m ()
+logIO = liftIO . putStrLn
 
 -- Starts up a GHC session and then runs the given action within it
 withGHCSession :: ThreadId -> GHCSessionConfig -> Ghc a -> IO a
@@ -70,13 +82,10 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
     runGhc (Just gscLibDir) . restoreControlC $ do
         -- Get the default dynFlags
         dflags0 <- getSessionDynFlags
-
         -- Add passed-in package DBs
         let dflags1 = addExtraPkgConfs dflags0 gscPackageDBs
-        
         -- If there's a sandbox, add its package DB
         dflags2 <- updateDynFlagsWithCabalSandbox dflags1
-
         -- If this is a stack project, add its package DBs
         dflags3 <- updateDynFlagsWithStackDB dflags2
 
@@ -87,11 +96,11 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
 
-                              , objectDir = Just ".halive"
-                              , hiDir     = Just ".halive"
-                              , stubDir   = Just ".halive"
-                              , dumpDir   = Just ".halive"
-                              --, verbosity = 5
+                              --, objectDir = Just ".halive"
+                              --, hiDir     = Just ".halive"
+                              --, stubDir   = Just ".halive"
+                              --, dumpDir   = Just ".halive"
+                              , verbosity = 3
                               }
                               -- turn off the GHCi sandbox
                               -- since it breaks OpenGL/GUI usage
@@ -104,13 +113,36 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                         then dflags4 `gopt_set` Opt_ForceRecomp
                         else dflags4
             dflags6 = foldl xopt_set dflags5 gscLanguageExtensions
+        
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
-        _ <- setSessionDynFlags dflags6
+        packageIDs <- setSessionDynFlags dflags6
+        dflags7 <- getSessionDynFlags
 
+
+        -- Works around a yet-unidentified segfault when loading
+        -- 5/1/2016: I've implemented this in a different way,
+        -- (by just passing in a file to compile that will trigger
+        -- loads of all its dependencies)
+        -- but this is still a viable approach... not quite as convenient though!
+        --let gscPreloadPackagesForModules = ["Sound.Pd"]
+        --preloadPackageKeys <- forM gscPreloadPackagesForModules $ \modName ->
+        --    modulePackageKey <$> findModule (mkModuleName modName) Nothing
+        --let finalPackageIDs = preloadPackageKeys ++ packageIDs
+        let finalPackageIDs = packageIDs
+
+        logIO $ "linkPackages: " ++ show (map packageKeyString finalPackageIDs)
+        liftIO $ linkPackages dflags7 finalPackageIDs
+        
         -- Initialize the package database and dynamic linker.
         -- Explicitly calling these avoids crashes on some of my machines.
-        (dflags7, _) <- liftIO (initPackages dflags6)
-        liftIO (initDynLinker dflags7)
+        
+        logIO $ "initDynLinker"
+        dflags8 <- getSessionDynFlags
+        liftIO (initDynLinker dflags8)
+
+
+        
+        logIO $ "withGHCSession Done"
 
         action
 
@@ -123,10 +155,12 @@ gatherErrors sourceError = do
         errorStrings = map (showSDoc dflags) errorSDocs
     return errorStrings
 
-newtype CompiledValue = CompiledValue HValue
+--newtype CompiledValue = CompiledValue HValue
+newtype CompiledValue = CompiledValue Dynamic deriving Show
 
-getCompiledValue :: CompiledValue -> a
-getCompiledValue (CompiledValue r) = unsafeCoerce r
+--getCompiledValue :: CompiledValue -> a
+--getCompiledValue (CompiledValue r) = unsafeCoerce r
+getCompiledValue (CompiledValue r) = fromDynamic r
 
 fileContentsStringToBuffer :: (MonadIO m) => Maybe String -> m (Maybe (StringBuffer, UTCTime))
 fileContentsStringToBuffer mFileContents = forM mFileContents $ \fileContents -> do
@@ -140,6 +174,7 @@ recompileExpressionInFile fileName mFileContents expression =
     -- the IORef + log_action solution instead. The API docs claim 'load' should
     -- throw SourceErrors but it doesn't afaict.
     catchExceptions . handleSourceError (fmap Left . gatherErrors) $ do
+        logIO $ "Recompiling " ++ show (fileName, expression)
         -- Prepend a '*' to prevent GHC from trying to load from any previously compiled object files
         -- see http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
         target <- guessTarget ('*':fileName) Nothing
@@ -153,8 +188,10 @@ recompileExpressionInFile fileName mFileContents expression =
         -- Get the dependencies of the main target
         graph <- depanal [] False
 
+        logIO $ "Loading " ++ show (fileName, expression)
         -- Reload the main target
         loadSuccess <- load LoadAllTargets
+        logIO $ "Done loading " ++ show (fileName, expression)
 
         if failed loadSuccess 
             then do
@@ -170,7 +207,10 @@ recompileExpressionInFile fileName mFileContents expression =
                 --setContext (IIModule . ms_mod_name <$> graph)
                 setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
                 
-                result <- compileExpr expression
+                logIO $ "Compiling " ++ show (fileName, expression)
+                --result <- compileExpr expression
+                result <- dynCompileExpr expression
+                logIO $ "Done compiling " ++ show (fileName, expression)
 
                 return (Right (CompiledValue result))
 
@@ -194,10 +234,13 @@ output a = do
 logHandler :: IORef String -> LogAction
 logHandler ref dflags severity srcSpan style msg =
     case severity of
-       SevError   ->  modifyIORef' ref (++ ('\n':printDoc))
-       SevFatal   ->  modifyIORef' ref (++ ('\n':printDoc))
-       SevWarning ->  modifyIORef' ref (++ ('\n':printDoc))
-       _          ->  return () -- ignore the rest
+       SevError   -> modifyIORef' ref (++ ('\n':messageWithLocation))
+       SevFatal   -> modifyIORef' ref (++ ('\n':messageWithLocation))
+       SevWarning -> modifyIORef' ref (++ ('\n':messageWithLocation))
+       _          -> do 
+            putStr messageOther
+            return () -- ignore the rest
     where cntx = initSDocContext dflags style
           locMsg = mkLocMessage severity srcSpan msg
-          printDoc = show (runSDoc locMsg cntx) 
+          messageWithLocation = show (runSDoc locMsg cntx)
+          messageOther = show (runSDoc msg cntx)

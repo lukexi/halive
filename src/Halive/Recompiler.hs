@@ -29,13 +29,22 @@ startGHC ghcSessionConfig = liftIO $ do
     -- Grab this thread's ID (need to run this on the main thread, of course)
     mainThreadID <- myThreadId
     
+    initialFileLock <- liftIO newEmptyMVar
 
-    _ <- forkOS . void . withGHCSession mainThreadID ghcSessionConfig . forever $ do
-        CompilationRequest{..} <- readTChanIO ghcChan
-        --liftIO . putStrLn $ "SubHalive recompiling: " ++ show (crFilePath, crExpressionString)
+    _ <- forkIO . void . withGHCSession mainThreadID ghcSessionConfig $ do
         
-        result <- recompileExpressionInFile crFilePath crFileContents crExpressionString
-        writeTChanIO crResultTChan result
+        initialResult <- recompileExpressionInFile "Dummy.hs" Nothing "foo"
+
+        liftIO $ putMVar initialFileLock ()
+        forever $ do
+            CompilationRequest{..} <- readTChanIO ghcChan
+            liftIO . putStrLn $ "SubHalive recompiling: " ++ show (crFilePath, crExpressionString)
+            
+            result <- recompileExpressionInFile crFilePath crFileContents crExpressionString
+            writeTChanIO crResultTChan result
+
+    () <- liftIO $ takeMVar initialFileLock
+
     return ghcChan
 
 
@@ -46,20 +55,20 @@ data Recompiler = Recompiler
 
 recompilerForExpression :: MonadIO m => (TChan CompilationRequest) -> FilePath -> String -> m Recompiler
 recompilerForExpression ghcChan filePath expressionString = liftIO $ do
-
     resultTChan <- newTChanIO
     let compilationRequest = CompilationRequest 
             { crFilePath         = filePath
             , crExpressionString = expressionString 
             , crResultTChan      = resultTChan
-            , crFileContents     = Nothing -- Let GHC read the file contents since we're responding to a filesystem event here
+            , crFileContents     = Nothing
             }
 
-    fileEventListener <- eventListenerForFile filePath JustReportEvents
-    
-    -- Compile immediately
-    writeTChanIO ghcChan compilationRequest
 
+    -- Compile for the first time immediately
+    writeTChanIO ghcChan compilationRequest
+    
+    -- Recompile on file event notifications
+    fileEventListener <- eventListenerForFile filePath JustReportEvents
     _ <- forkIO . forever $ do
         _ <- readFileEvent fileEventListener
         writeTChanIO ghcChan compilationRequest
