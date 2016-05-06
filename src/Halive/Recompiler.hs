@@ -22,24 +22,35 @@ data CompilationRequest = CompilationRequest
 
 type CompilationResult = Either [String] CompiledValue
 
+
+-- This is used to implement a workaround for the GHC API crashing
+-- when used after application startup, when it tries to load libraries
+-- for the first time. By wrapping main in withGHC, startGHC will block until
+-- the GHC API is initialized before allowing the application to start.
+withGHC :: MonadIO m => GHCSessionConfig -> (TChan CompilationRequest -> m b) -> m b
+withGHC ghcSessionConfig action = do
+    ghcChan <- startGHC ghcSessionConfig
+    action ghcChan
+
+
 startGHC :: MonadIO m => GHCSessionConfig -> m (TChan CompilationRequest)
 startGHC ghcSessionConfig = liftIO $ do
     ghcChan <- newTChanIO
 
     -- Grab this thread's ID (need to run this on the main thread, of course)
     mainThreadID <- myThreadId
-    
+
     initialFileLock <- liftIO newEmptyMVar
 
     _ <- forkIO . void . withGHCSession mainThreadID ghcSessionConfig $ do
-        
+
         initialResult <- recompileExpressionInFile "Dummy.hs" Nothing "foo"
 
         liftIO $ putMVar initialFileLock ()
         forever $ do
             CompilationRequest{..} <- readTChanIO ghcChan
             liftIO . putStrLn $ "SubHalive recompiling: " ++ show (crFilePath, crExpressionString)
-            
+
             result <- recompileExpressionInFile crFilePath crFileContents crExpressionString
             writeTChanIO crResultTChan result
 
@@ -48,7 +59,7 @@ startGHC ghcSessionConfig = liftIO $ do
     return ghcChan
 
 
-data Recompiler = Recompiler 
+data Recompiler = Recompiler
     { recResultTChan :: TChan CompilationResult
     , recFileEventListener :: FileEventListener
     }
@@ -56,9 +67,9 @@ data Recompiler = Recompiler
 recompilerForExpression :: MonadIO m => (TChan CompilationRequest) -> FilePath -> String -> m Recompiler
 recompilerForExpression ghcChan filePath expressionString = liftIO $ do
     resultTChan <- newTChanIO
-    let compilationRequest = CompilationRequest 
+    let compilationRequest = CompilationRequest
             { crFilePath         = filePath
-            , crExpressionString = expressionString 
+            , crExpressionString = expressionString
             , crResultTChan      = resultTChan
             , crFileContents     = Nothing
             }
@@ -66,7 +77,7 @@ recompilerForExpression ghcChan filePath expressionString = liftIO $ do
 
     -- Compile for the first time immediately
     writeTChanIO ghcChan compilationRequest
-    
+
     -- Recompile on file event notifications
     fileEventListener <- eventListenerForFile filePath JustReportEvents
     _ <- forkIO . forever $ do
