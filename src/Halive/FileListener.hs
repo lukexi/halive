@@ -21,6 +21,7 @@ data ShouldReadFile = ReadFileOnEvents | JustReportEvents deriving (Eq, Show)
 data FileEventListener = FileEventListener
     { felEventTChan           :: TChan (Either FSNotify.Event String)
     , felIgnoreNextEventsNear :: TVar (Maybe UTCTime)
+    , felStopLock             :: MVar ()
     }
 
 atomicallyIO :: MonadIO m => STM a -> m a
@@ -45,17 +46,27 @@ eventListenerForFile fileName shouldReadFile = liftIO $ do
     eventChan        <- newTChanIO
     ignoreEventsNear <- newTVarIO Nothing
 
-    _ <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
+    stopLock <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
 
-    return FileEventListener { felEventTChan = eventChan, felIgnoreNextEventsNear = ignoreEventsNear }
+    return FileEventListener
+        { felEventTChan = eventChan
+        , felIgnoreNextEventsNear = ignoreEventsNear
+        , felStopLock = stopLock
+        }
+
+killFileEventListener :: (MonadIO m) => FileEventListener -> m ()
+killFileEventListener eventListener = liftIO $ putMVar (felStopLock eventListener) ()
+
 
 forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
     predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     -- If an ignore time is set, ignore file changes for the next 100 ms
     let ignoreTime = 0.1
-    forkIO . withManager $ \manager -> do
+    stopLock <- newEmptyMVar
+    _ <- forkIO . withManager $ \manager -> do
         let watchDirectory = takeDirectory fileName
-        _stop <- watchTree manager watchDirectory predicate $ \e -> do
+
+        stop <- watchTree manager watchDirectory predicate $ \e -> do
             mTimeToIgnore <- atomically $ readTVar ignoreEventsNear
             let timeOfEvent = eventTime e
                 shouldIgnore = case mTimeToIgnore of
@@ -69,7 +80,9 @@ forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
                         writeTChanIO eventChan (Right fileContents)
                     else writeTChanIO eventChan (Left e)
 
-        forever (threadDelay 10000000)
+        () <- takeMVar stopLock
+        stop
+    return stopLock
 
 setIgnoreTimeNow :: MonadIO m => FileEventListener -> m ()
 setIgnoreTimeNow fileEventListener = setIgnoreTime fileEventListener =<< liftIO getCurrentTime

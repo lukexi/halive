@@ -62,10 +62,16 @@ startGHC ghcSessionConfig = liftIO $ do
 data Recompiler = Recompiler
     { recResultTChan :: TChan CompilationResult
     , recFileEventListener :: FileEventListener
+    , recListenerThread :: ThreadId
     }
 
-recompilerForExpression :: MonadIO m => (TChan CompilationRequest) -> FilePath -> String -> m Recompiler
-recompilerForExpression ghcChan filePath expressionString = liftIO $ do
+recompilerForExpression :: MonadIO m
+                        => TChan CompilationRequest
+                        -> FilePath
+                        -> String
+                        -> Bool
+                        -> m Recompiler
+recompilerForExpression ghcChan filePath expressionString compileOnce = liftIO $ do
     resultTChan <- newTChanIO
     let compilationRequest = CompilationRequest
             { crFilePath         = filePath
@@ -76,13 +82,24 @@ recompilerForExpression ghcChan filePath expressionString = liftIO $ do
 
 
     -- Compile for the first time immediately
-    writeTChanIO ghcChan compilationRequest
+    when compileOnce $
+        writeTChanIO ghcChan compilationRequest
 
     -- Recompile on file event notifications
     fileEventListener <- eventListenerForFile filePath JustReportEvents
-    _ <- forkIO . forever $ do
+    listenerThread <- forkIO . forever $ do
         _ <- readFileEvent fileEventListener
         writeTChanIO ghcChan compilationRequest
 
-    return Recompiler { recResultTChan = resultTChan, recFileEventListener = fileEventListener }
+    return Recompiler
+        { recResultTChan = resultTChan
+        , recFileEventListener = fileEventListener
+        , recListenerThread = listenerThread
+        }
 
+killRecompiler recompiler = do
+    liftIO $ killThread (recListenerThread recompiler)
+
+renameRecompilerForExpression recompiler ghcChan filePath expressionString = do
+    killRecompiler recompiler
+    recompilerForExpression ghcChan filePath expressionString False
