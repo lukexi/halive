@@ -7,11 +7,11 @@ main :: IO a
 main = do
     ghc <- startGHC defaultGHCSessionConfig
 
-    fooRecompiler <- recompilerForExpression ghc "test/TestFileFoo.hs" "foo"
-    barRecompiler <- recompilerForExpression ghc "test/TestFileBar.hs" "bar"
+    fooRecompiler <- recompilerForExpression ghc "test/TestFileFoo.hs" "foo" True
+    barRecompiler <- recompilerForExpression ghc "test/TestFileBar.hs" "bar" True
 
     forever $ do
-        result <- atomically 
+        result <- atomically
             (readTChan (recResultTChan fooRecompiler)
             `orElse`
              readTChan (recResultTChan barRecompiler))
