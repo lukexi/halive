@@ -18,10 +18,10 @@ type FileEventChan = TChan FSNotify.Event
 
 data ShouldReadFile = ReadFileOnEvents | JustReportEvents deriving (Eq, Show)
 
-data FileEventListener = FileEventListener 
+data FileEventListener = FileEventListener
     { felEventTChan           :: TChan (Either FSNotify.Event String)
-    , felIgnoreNextEventsNear :: TVar (Maybe UTCTime) 
-    } 
+    , felIgnoreNextEventsNear :: TVar (Maybe UTCTime)
+    }
 
 atomicallyIO :: MonadIO m => STM a -> m a
 atomicallyIO = liftIO . atomically
@@ -45,7 +45,7 @@ eventListenerForFile fileName shouldReadFile = liftIO $ do
     eventChan        <- newTChanIO
     ignoreEventsNear <- newTVarIO Nothing
 
-    --_ <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
+    _ <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
 
     return FileEventListener { felEventTChan = eventChan, felIgnoreNextEventsNear = ignoreEventsNear }
 
@@ -62,7 +62,7 @@ forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
                     Nothing -> False
                     Just timeToIgnore -> abs (timeOfEvent `diffUTCTime` timeToIgnore) < ignoreTime
             unless shouldIgnore $ do
-                if (shouldReadFile == ReadFileOnEvents) 
+                if (shouldReadFile == ReadFileOnEvents)
                     then do
                         fileContents <- readFile fileName
                         let !len = length fileContents
@@ -84,7 +84,7 @@ onFileEvent :: MonadIO m => FileEventListener -> m () -> m ()
 onFileEvent FileEventListener{..} = onTChanRead felEventTChan
 
 onTChanRead :: MonadIO m => TChan a -> m () -> m ()
-onTChanRead eventChan action = 
+onTChanRead eventChan action =
     tryReadTChanIO eventChan >>= \case
         Just _  -> action
         Nothing -> return ()

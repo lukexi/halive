@@ -41,7 +41,7 @@ data GHCSessionConfig = GHCSessionConfig
 
 -- Probably shouldn't be here, but needed for Rumpus
 defaultLanguageExtensions :: [ExtensionFlag]
-defaultLanguageExtensions = 
+defaultLanguageExtensions =
     [ Opt_FlexibleContexts
     , Opt_RecordWildCards
     , Opt_ViewPatterns
@@ -51,7 +51,7 @@ defaultLanguageExtensions =
     ]
 
 defaultGHCSessionConfig :: GHCSessionConfig
-defaultGHCSessionConfig = GHCSessionConfig 
+defaultGHCSessionConfig = GHCSessionConfig
     { gscFixDebounce = DebounceFix
     , gscImportPaths = []
     , gscPackageDBs  = []
@@ -61,8 +61,8 @@ defaultGHCSessionConfig = GHCSessionConfig
     }
 
 --pkgConfRefToString = \case
---    GlobalPkgConf -> "GlobalPkgConf" 
---    UserPkgConf -> "UserPkgConf" 
+--    GlobalPkgConf -> "GlobalPkgConf"
+--    UserPkgConf -> "UserPkgConf"
 --    PkgConfFile file -> "PkgConfFile " ++ show file
 
 --extraPkgConfsToString dflags = show $ map pkgConfRefToString $ extraPkgConfs dflags $ []
@@ -89,7 +89,7 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         dflags3 <- updateDynFlagsWithStackDB dflags2
 
         -- Make sure we're configured for live-reload
-        let dflags4 = dflags3 { hscTarget   = if gscCompilationMode == Compiled then HscAsm else HscInterpreted 
+        let dflags4 = dflags3 { hscTarget   = if gscCompilationMode == Compiled then HscAsm else HscInterpreted
                               , optLevel    = if gscCompilationMode == Compiled then 2 else 0
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
@@ -98,20 +98,20 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                               --, hiDir     = Just ".halive"
                               --, stubDir   = Just ".halive"
                               --, dumpDir   = Just ".halive"
-                              , verbosity = 3
+                              --, verbosity = 3
                               }
                               -- turn off the GHCi sandbox
                               -- since it breaks OpenGL/GUI usage
-                              `gopt_unset` Opt_GhciSandbox 
+                              `gopt_unset` Opt_GhciSandbox
             -- GHC seems to try to "debounce" compilations within
-            -- about a half second (i.e., it won't recompile) 
+            -- about a half second (i.e., it won't recompile)
             -- This fixes that, but probably isn't quite what we want
             -- since it will cause extra files to be recompiled...
-            dflags5 = if gscFixDebounce == DebounceFix 
+            dflags5 = if gscFixDebounce == DebounceFix
                         then dflags4 `gopt_set` Opt_ForceRecomp
                         else dflags4
             dflags6 = foldl xopt_set dflags5 gscLanguageExtensions
-        
+
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
         packageIDs <- setSessionDynFlags dflags6
         dflags7 <- getSessionDynFlags
@@ -130,16 +130,16 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
 
         logIO $ "linkPackages: " ++ show (map packageKeyString finalPackageIDs)
         liftIO $ linkPackages dflags7 finalPackageIDs
-        
+
         -- Initialize the package database and dynamic linker.
         -- Explicitly calling these avoids crashes on some of my machines.
-        
+
         logIO $ "initDynLinker"
         dflags8 <- getSessionDynFlags
         liftIO (initDynLinker dflags8)
 
 
-        
+
         logIO $ "withGHCSession Done"
 
         action
@@ -167,7 +167,7 @@ fileContentsStringToBuffer mFileContents = forM mFileContents $ \fileContents ->
 
 -- | We return the uncoerced HValue, which lets us send polymorphic values back through channels
 recompileExpressionInFile :: FilePath -> Maybe String -> String -> Ghc (Either [String] CompiledValue)
-recompileExpressionInFile fileName mFileContents expression = 
+recompileExpressionInFile fileName mFileContents expression =
     -- NOTE: handleSourceError doesn't actually seem to do anything, and we use
     -- the IORef + log_action solution instead. The API docs claim 'load' should
     -- throw SourceErrors but it doesn't afaict.
@@ -178,7 +178,7 @@ recompileExpressionInFile fileName mFileContents expression =
         target <- guessTarget ('*':fileName) Nothing
         mFileContentsBuffer <- fileContentsStringToBuffer mFileContents
         setTargets [target { targetContents = mFileContentsBuffer }]
-        
+
         errorsRef <- liftIO (newIORef "")
         dflags <- getSessionDynFlags
         _ <- setSessionDynFlags dflags { log_action = logHandler errorsRef }
@@ -191,20 +191,20 @@ recompileExpressionInFile fileName mFileContents expression =
         loadSuccess <- load LoadAllTargets
         logIO $ "Done loading " ++ show (fileName, expression)
 
-        if failed loadSuccess 
+        if failed loadSuccess
             then do
                 errors <- liftIO (readIORef errorsRef)
                 return (Left [errors])
             else do
                 -- We must parse and typecheck modules before they'll be available for usage
                 forM_ graph (typecheckModule <=< parseModule)
-                
+
                 -- Load the dependencies of the main target
-                -- This brings all top-level definitions into scope (whether exported or not), 
-                -- but only works on interpreted modules 
+                -- This brings all top-level definitions into scope (whether exported or not),
+                -- but only works on interpreted modules
                 --setContext (IIModule . ms_mod_name <$> graph)
                 setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
-                
+
                 logIO $ "Compiling " ++ show (fileName, expression)
                 --result <- compileExpr expression
                 result <- dynCompileExpr expression
@@ -213,13 +213,13 @@ recompileExpressionInFile fileName mFileContents expression =
                 return (Right (CompiledValue result))
 
 catchExceptions :: ExceptionMonad m => m (Either [String] a) -> m (Either [String] a)
-catchExceptions a = gcatch a 
+catchExceptions a = gcatch a
     (\(_x :: SomeException) -> do
         liftIO (putStrLn ("Caught exception during recompileExpressionInFile: " ++ show _x))
         return (Left [show _x]))
 
 
--- A helper from interactive-diagrams to print out GHC API values, 
+-- A helper from interactive-diagrams to print out GHC API values,
 -- useful while debugging the API.
 -- | Outputs any value that can be pretty-printed using the default style
 output :: (GhcMonad m, MonadIO m) => Outputable a => a -> m ()
@@ -235,7 +235,7 @@ logHandler ref dflags severity srcSpan style msg =
        SevError   -> modifyIORef' ref (++ ('\n':messageWithLocation))
        SevFatal   -> modifyIORef' ref (++ ('\n':messageWithLocation))
        SevWarning -> modifyIORef' ref (++ ('\n':messageWithLocation))
-       _          -> do 
+       _          -> do
             putStr messageOther
             return () -- ignore the rest
     where cntx = initSDocContext dflags style
