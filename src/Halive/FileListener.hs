@@ -21,7 +21,7 @@ data ShouldReadFile = ReadFileOnEvents | JustReportEvents deriving (Eq, Show)
 data FileEventListener = FileEventListener
     { felEventTChan           :: TChan (Either FSNotify.Event String)
     , felIgnoreNextEventsNear :: TVar (Maybe UTCTime)
-    , felStopLock             :: MVar ()
+    , felStopMVar             :: MVar ()
     }
 
 atomicallyIO :: MonadIO m => STM a -> m a
@@ -46,23 +46,23 @@ eventListenerForFile fileName shouldReadFile = liftIO $ do
     eventChan        <- newTChanIO
     ignoreEventsNear <- newTVarIO Nothing
 
-    stopLock <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
+    stopMVar <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
 
     return FileEventListener
         { felEventTChan = eventChan
         , felIgnoreNextEventsNear = ignoreEventsNear
-        , felStopLock = stopLock
+        , felStopMVar = stopMVar
         }
 
 killFileEventListener :: (MonadIO m) => FileEventListener -> m ()
-killFileEventListener eventListener = liftIO $ putMVar (felStopLock eventListener) ()
+killFileEventListener eventListener = liftIO $ putMVar (felStopMVar eventListener) ()
 
 
 forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
     predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     -- If an ignore time is set, ignore file changes for the next 100 ms
     let ignoreTime = 0.1
-    stopLock <- newEmptyMVar
+    stopMVar <- newEmptyMVar
     _ <- forkIO . withManager $ \manager -> do
         let watchDirectory = takeDirectory fileName
 
@@ -80,9 +80,9 @@ forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
                         writeTChanIO eventChan (Right fileContents)
                     else writeTChanIO eventChan (Left e)
 
-        () <- takeMVar stopLock
+        () <- takeMVar stopMVar
         stop
-    return stopLock
+    return stopMVar
 
 setIgnoreTimeNow :: MonadIO m => FileEventListener -> m ()
 setIgnoreTimeNow fileEventListener = setIgnoreTime fileEventListener =<< liftIO getCurrentTime
