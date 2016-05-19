@@ -57,7 +57,11 @@ eventListenerForFile fileName shouldReadFile = liftIO $ do
 killFileEventListener :: (MonadIO m) => FileEventListener -> m ()
 killFileEventListener eventListener = liftIO $ putMVar (felStopMVar eventListener) ()
 
-
+forkEventListenerThread :: FilePath
+                        -> ShouldReadFile
+                        -> TChan (Either FSNotify.Event String)
+                        -> TVar (Maybe UTCTime)
+                        -> IO (MVar ())
 forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
     predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     -- If an ignore time is set, ignore file changes for the next 100 ms
@@ -76,7 +80,7 @@ forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
                 if (shouldReadFile == ReadFileOnEvents)
                     then do
                         fileContents <- readFile fileName
-                        let !len = length fileContents
+                        let !_len = length fileContents
                         writeTChanIO eventChan (Right fileContents)
                     else writeTChanIO eventChan (Left e)
 

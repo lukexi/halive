@@ -9,10 +9,9 @@ import ErrUtils
 import HscTypes
 import GHC.Paths
 import Outputable
-import Unsafe.Coerce
 import StringBuffer
 
-import Packages
+--import Packages
 import Linker
 import Module
 
@@ -37,6 +36,10 @@ data GHCSessionConfig = GHCSessionConfig
     , gscLibDir             :: FilePath
     , gscLanguageExtensions :: [ExtensionFlag]
     , gscCompilationMode    :: CompliationMode
+    , gscStartupFile        :: Maybe (FilePath, String)
+        -- ^ Allow API users to block until a given file is compiled,
+        -- to work around a bug where the GHC API crashes while loading libraries
+        -- if the main thread is doing work (possibly due to accessing said libraries in some way)
     }
 
 -- Probably shouldn't be here, but needed for Rumpus
@@ -58,6 +61,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscLanguageExtensions = defaultLanguageExtensions
     , gscLibDir = libdir
     , gscCompilationMode = Interpreted
+    , gscStartupFile = Nothing
     }
 
 --pkgConfRefToString = \case
@@ -74,9 +78,9 @@ logIO = liftIO . putStrLn
 withGHCSession :: ThreadId -> GHCSessionConfig -> Ghc a -> IO a
 withGHCSession mainThreadID GHCSessionConfig{..} action = do
     -- Work around https://ghc.haskell.org/trac/ghc/ticket/4162
-    let restoreControlC action = do
+    let restoreControlC f = do
             liftIO $ installHandler sigINT (\_signal -> killThread mainThreadID)
-            action
+            f
     -- defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
     runGhc (Just gscLibDir) . restoreControlC $ do
         -- Get the default dynFlags
@@ -94,10 +98,10 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
                               , importPaths = gscImportPaths
-                              --, objectDir = Just ".halive"
-                              --, hiDir     = Just ".halive"
-                              --, stubDir   = Just ".halive"
-                              --, dumpDir   = Just ".halive"
+                              , objectDir = Just ".halive"
+                              , hiDir     = Just ".halive"
+                              , stubDir   = Just ".halive"
+                              , dumpDir   = Just ".halive"
                               --, verbosity = 3
                               }
                               -- turn off the GHCi sandbox
@@ -158,6 +162,7 @@ newtype CompiledValue = CompiledValue Dynamic deriving Show
 
 --getCompiledValue :: CompiledValue -> a
 --getCompiledValue (CompiledValue r) = unsafeCoerce r
+getCompiledValue :: Typeable a => CompiledValue -> Maybe a
 getCompiledValue (CompiledValue r) = fromDynamic r
 
 fileContentsStringToBuffer :: (MonadIO m) => Maybe String -> m (Maybe (StringBuffer, UTCTime))

@@ -44,7 +44,9 @@ startGHC ghcSessionConfig = liftIO $ do
 
     _ <- forkIO . void . withGHCSession mainThreadID ghcSessionConfig $ do
 
-        initialResult <- recompileExpressionInFile "Dummy.hs" Nothing "foo"
+        -- See SubHalive.hs:GHCSessionConfig
+        forM_ (gscStartupFile ghcSessionConfig) $ \(startupFile, startupExpr) ->
+            recompileExpressionInFile startupFile Nothing startupExpr
 
         liftIO $ putMVar initialFileLock ()
         forever $ do
@@ -97,9 +99,15 @@ recompilerForExpression ghcChan filePath expressionString compileOnce = liftIO $
         , recListenerThread = listenerThread
         }
 
+killRecompiler :: MonadIO m => Recompiler -> m ()
 killRecompiler recompiler = do
     liftIO $ killThread (recListenerThread recompiler)
 
+renameRecompilerForExpression :: MonadIO m => Recompiler
+                                           -> TChan CompilationRequest
+                                           -> FilePath
+                                           -> String
+                                           -> m Recompiler
 renameRecompilerForExpression recompiler ghcChan filePath expressionString = do
     killRecompiler recompiler
     recompilerForExpression ghcChan filePath expressionString False
