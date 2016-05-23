@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase, ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
-module Halive.SubHalive where
+module Halive.SubHalive (module Halive.SubHalive, ExtensionFlag(..)) where
 
 import GHC
 import DynFlags
@@ -42,23 +42,14 @@ data GHCSessionConfig = GHCSessionConfig
         -- if the main thread is doing work (possibly due to accessing said libraries in some way)
     }
 
--- Probably shouldn't be here, but needed for Rumpus
-defaultLanguageExtensions :: [ExtensionFlag]
-defaultLanguageExtensions =
-    [ Opt_FlexibleContexts
-    , Opt_RecordWildCards
-    , Opt_ViewPatterns
-    , Opt_LambdaCase
-    , Opt_MultiWayIf
-    , Opt_BangPatterns
-    ]
+
 
 defaultGHCSessionConfig :: GHCSessionConfig
 defaultGHCSessionConfig = GHCSessionConfig
     { gscFixDebounce = DebounceFix
     , gscImportPaths = []
     , gscPackageDBs  = []
-    , gscLanguageExtensions = defaultLanguageExtensions
+    , gscLanguageExtensions = []
     , gscLibDir = libdir
     , gscCompilationMode = Interpreted
     , gscStartupFile = Nothing
