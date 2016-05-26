@@ -123,19 +123,19 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         --let finalPackageIDs = preloadPackageKeys ++ packageIDs
         let finalPackageIDs = packageIDs
 
-        logIO $ "linkPackages: " ++ show (map packageKeyString finalPackageIDs)
+        --logIO $ "linkPackages: " ++ show (map packageKeyString finalPackageIDs)
         liftIO $ linkPackages dflags7 finalPackageIDs
 
         -- Initialize the package database and dynamic linker.
         -- Explicitly calling these avoids crashes on some of my machines.
 
-        logIO $ "initDynLinker"
+        --logIO $ "initDynLinker"
         dflags8 <- getSessionDynFlags
         liftIO (initDynLinker dflags8)
 
 
 
-        logIO $ "withGHCSession Done"
+        --logIO $ "withGHCSession Done"
 
         action
 
@@ -168,7 +168,7 @@ recompileExpressionInFile fileName mFileContents expression =
     -- the IORef + log_action solution instead. The API docs claim 'load' should
     -- throw SourceErrors but it doesn't afaict.
     catchExceptions . handleSourceError (fmap Left . gatherErrors) $ do
-        logIO $ "Recompiling " ++ show (fileName, expression)
+        --logIO $ "Recompiling " ++ show (fileName, expression)
         -- Prepend a '*' to prevent GHC from trying to load from any previously compiled object files
         -- see http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
         target <- guessTarget ('*':fileName) Nothing
@@ -182,10 +182,10 @@ recompileExpressionInFile fileName mFileContents expression =
         -- Get the dependencies of the main target
         graph <- depanal [] False
 
-        logIO $ "Loading " ++ show (fileName, expression)
+        --logIO $ "Loading " ++ show (fileName, expression)
         -- Reload the main target
         loadSuccess <- load LoadAllTargets
-        logIO $ "Done loading " ++ show (fileName, expression)
+        --logIO $ "Done loading " ++ show (fileName, expression)
 
         if failed loadSuccess
             then do
@@ -201,10 +201,10 @@ recompileExpressionInFile fileName mFileContents expression =
                 --setContext (IIModule . ms_mod_name <$> graph)
                 setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
 
-                logIO $ "Compiling " ++ show (fileName, expression)
+                --logIO $ "Compiling " ++ show (fileName, expression)
                 --result <- compileExpr expression
                 result <- dynCompileExpr expression
-                logIO $ "Done compiling " ++ show (fileName, expression)
+                --logIO $ "Done compiling " ++ show (fileName, expression)
 
                 return (Right (CompiledValue result))
 
