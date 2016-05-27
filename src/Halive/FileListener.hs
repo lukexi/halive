@@ -13,6 +13,7 @@ import System.FilePath
 import Control.Monad.Trans
 import Control.Monad
 import Data.Time
+import Control.Exception
 
 type FileEventChan = TChan FSNotify.Event
 
@@ -80,6 +81,11 @@ forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
                 if (shouldReadFile == ReadFileOnEvents)
                     then do
                         fileContents <- readFile fileName
+                            `catch` (\e -> do
+                                putStrLn $
+                                    "Event listener failed to read " ++ fileName ++
+                                    ": " ++ show (e::SomeException)
+                                return "")
                         let !_len = length fileContents
                         writeTChanIO eventChan (Right fileContents)
                     else writeTChanIO eventChan (Left e)
