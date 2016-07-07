@@ -40,6 +40,7 @@ data GHCSessionConfig = GHCSessionConfig
         -- ^ Allow API users to block until a given file is compiled,
         -- to work around a bug where the GHC API crashes while loading libraries
         -- if the main thread is doing work (possibly due to accessing said libraries in some way)
+    , gscVerbosity          :: Int
     }
 
 
@@ -53,6 +54,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscLibDir = libdir
     , gscCompilationMode = Interpreted
     , gscStartupFile = Nothing
+    , gscVerbosity = 0
     }
 
 --pkgConfRefToString = \case
@@ -93,7 +95,7 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                               , hiDir     = Just ".halive"
                               , stubDir   = Just ".halive"
                               , dumpDir   = Just ".halive"
-                              --, verbosity = 3
+                              , verbosity = gscVerbosity
                               }
                               -- turn off the GHCi sandbox
                               -- since it breaks OpenGL/GUI usage
