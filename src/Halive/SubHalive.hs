@@ -1,6 +1,15 @@
 {-# LANGUAGE OverloadedStrings, LambdaCase, ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
-module Halive.SubHalive (module Halive.SubHalive, ExtensionFlag(..)) where
+{-# LANGUAGE CPP #-}
+module Halive.SubHalive (
+    module Halive.SubHalive
+#if __GLASGOW_HASKELL__ >= 800
+    , module GHC.LanguageExtensions
+#else
+    , ExtensionFlag(..)
+#endif
+
+    ) where
 
 import GHC
 import DynFlags
@@ -34,7 +43,11 @@ data GHCSessionConfig = GHCSessionConfig
     , gscImportPaths        :: [FilePath]
     , gscPackageDBs         :: [FilePath]
     , gscLibDir             :: FilePath
+#if __GLASGOW_HASKELL__ >= 800
+    , gscLanguageExtensions :: [Extension]
+#else
     , gscLanguageExtensions :: [ExtensionFlag]
+#endif
     , gscCompilationMode    :: CompliationMode
     , gscStartupFile        :: Maybe (FilePath, String)
         -- ^ Allow API users to block until a given file is compiled,
@@ -124,20 +137,21 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         --    modulePackageKey <$> findModule (mkModuleName modName) Nothing
         --let finalPackageIDs = preloadPackageKeys ++ packageIDs
         let finalPackageIDs = packageIDs
-
         --logIO $ "linkPackages: " ++ show (map packageKeyString finalPackageIDs)
+
+         -- Initialize the package database and dynamic linker.
+         -- Explicitly calling these avoids crashes on some of my machines.
+
+#if __GLASGOW_HASKELL__ >= 800
+        hscEnv1 <- getSession
+        liftIO $ linkPackages hscEnv1 finalPackageIDs
+        hscEnv2 <- getSession
+        liftIO (initDynLinker hscEnv2)
+#else
         liftIO $ linkPackages dflags7 finalPackageIDs
-
-        -- Initialize the package database and dynamic linker.
-        -- Explicitly calling these avoids crashes on some of my machines.
-
-        --logIO $ "initDynLinker"
         dflags8 <- getSessionDynFlags
         liftIO (initDynLinker dflags8)
-
-
-
-        --logIO $ "withGHCSession Done"
+#endif
 
         action
 
@@ -228,7 +242,11 @@ output a = do
     liftIO $ print $ runSDoc (ppr a) cntx
 
 logHandler :: IORef String -> LogAction
+#if __GLASGOW_HASKELL__ >= 800
+logHandler ref dflags warnReason severity srcSpan style msg =
+#else
 logHandler ref dflags severity srcSpan style msg =
+#endif
     case severity of
        SevError   -> modifyIORef' ref (++ ('\n':messageWithLocation))
        SevFatal   -> modifyIORef' ref (++ ('\n':messageWithLocation))

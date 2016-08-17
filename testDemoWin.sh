@@ -1,1 +1,1 @@
-stack install && stack build --stack-yaml=stack-win-demo-fix.yaml && halive demo/Main.hs
+stack install && stack build && halive demo/Main.hs

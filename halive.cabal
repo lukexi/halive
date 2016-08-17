@@ -56,6 +56,9 @@ library
     stm,
     time,
     signal
+  if impl(ghc >= 8)
+    build-depends:
+      ghc-boot
 
 executable halive
   main-is:             main.hs
