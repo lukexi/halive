@@ -12,6 +12,9 @@ module Halive.SubHalive (
     ) where
 
 import GHC
+#if __GLASGOW_HASKELL__ >= 800
+import GHC.LanguageExtensions
+#endif
 import DynFlags
 import Exception
 import ErrUtils
@@ -124,7 +127,6 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
 
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
         packageIDs <- setSessionDynFlags dflags6
-        dflags7 <- getSessionDynFlags
 
 
         -- Works around a yet-unidentified segfault when loading
@@ -148,6 +150,7 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         hscEnv2 <- getSession
         liftIO (initDynLinker hscEnv2)
 #else
+        dflags7 <- getSessionDynFlags
         liftIO $ linkPackages dflags7 finalPackageIDs
         dflags8 <- getSessionDynFlags
         liftIO (initDynLinker dflags8)
@@ -234,7 +237,7 @@ catchExceptions a = gcatch a
 -- A helper from interactive-diagrams to print out GHC API values,
 -- useful while debugging the API.
 -- | Outputs any value that can be pretty-printed using the default style
-output :: (GhcMonad m, MonadIO m) => Outputable a => a -> m ()
+output :: (GhcMonad m, Outputable a) => a -> m ()
 output a = do
     dfs <- getSessionDynFlags
     let style = defaultUserStyle
@@ -243,7 +246,7 @@ output a = do
 
 logHandler :: IORef String -> LogAction
 #if __GLASGOW_HASKELL__ >= 800
-logHandler ref dflags warnReason severity srcSpan style msg =
+logHandler ref dflags _warnReason severity srcSpan style msg =
 #else
 logHandler ref dflags severity srcSpan style msg =
 #endif
