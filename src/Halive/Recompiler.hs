@@ -13,21 +13,23 @@ data CompilationRequest = CompilationRequest
     { crFilePath         :: FilePath
     , crExpressionString :: String
     , crResultTChan      :: TChan CompilationResult
-    , crFileContents     :: Maybe String -- This is intentionally lazy, since we want to evaluate the string on the SubHalive thread.
-                                         -- (as it may be e.g. a TextSeq that needs conversion)
-                                         -- In the future, we may want to pass GHC's StringBuffer type here instead, and construct those
-                                         -- in a smarter way.
+    , crFileContents     :: Maybe String
+    -- ^ This is intentionally lazy, since we want to evaluate the string on
+    -- the SubHalive thread (as it may be e.g. a TextSeq that needs conversion)
+    -- In the future, we may want to pass GHC's StringBuffer type here instead,
+    -- and construct those in a smarter way.
     }
 
-
 type CompilationResult = Either [String] CompiledValue
-
 
 -- This is used to implement a workaround for the GHC API crashing
 -- when used after application startup, when it tries to load libraries
 -- for the first time. By wrapping main in withGHC, startGHC will block until
 -- the GHC API is initialized before allowing the application to start.
-withGHC :: MonadIO m => GHCSessionConfig -> (TChan CompilationRequest -> m b) -> m b
+withGHC :: MonadIO m
+        => GHCSessionConfig
+        -> (TChan CompilationRequest -> m b)
+        -> m b
 withGHC ghcSessionConfig action = do
     ghcChan <- startGHC ghcSessionConfig
     action ghcChan
@@ -45,15 +47,18 @@ startGHC ghcSessionConfig = liftIO $ do
     _ <- forkIO . void . withGHCSession mainThreadID ghcSessionConfig $ do
 
         -- See SubHalive.hs:GHCSessionConfig
-        forM_ (gscStartupFile ghcSessionConfig) $ \(startupFile, startupExpr) ->
-            recompileExpressionInFile startupFile Nothing startupExpr
+        forM_ (gscStartupFile ghcSessionConfig) $
+            \(startupFile, startupExpr) ->
+                recompileExpressionInFile startupFile Nothing startupExpr
 
         liftIO $ putMVar initialFileLock ()
         forever $ do
             CompilationRequest{..} <- readTChanIO ghcChan
-            liftIO . putStrLn $ "SubHalive recompiling: " ++ show (crFilePath, crExpressionString)
+            liftIO . putStrLn $ "SubHalive recompiling: "
+                ++ show (crFilePath, crExpressionString)
 
-            result <- recompileExpressionInFile crFilePath crFileContents crExpressionString
+            result <- recompileExpressionInFile
+                crFilePath crFileContents crExpressionString
             writeTChanIO crResultTChan result
 
     () <- liftIO $ takeMVar initialFileLock

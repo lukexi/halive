@@ -1,8 +1,11 @@
+BUGS:
+[ ] demo/Main.hs segfaults on subsequent compilations when evaluating Green.green.
+
 http://hackage.haskell.org/package/optparse-generic
 
 TODO:
 [ ] Should be able to use SubHalive to slim down Halive.hs even further by
-    using a SubHalive thread, printing exceptions, and running successful HValues 
+    using a SubHalive thread, printing exceptions, and running successful HValues
     as IO () actions on the main thread (rather than using runStmt)
 
 [ ] New async typechecking context would form a nice basis for a runtime query system
@@ -10,7 +13,7 @@ TODO:
 
 [ ] Think if -fdefer-type-errors gives us anything interesting
 
-[ ] Flag handling update: 
+[ ] Flag handling update:
     The three below would be subsumed by just using the parseStaticFlags/parseDynamicFlags
     functions to set up DynFlags, and then parsing out the included paths from there. That way we
     act nearly identically to 'ghc'/'ghci'/'runhaskell'.
@@ -38,14 +41,14 @@ TODO:
     putStrLn/trace debugging is already a lot nicer with Halive since you can
     toggle them on and off while the program is running. Expand on this
     to begin subsuming some of the functionality of a typical debugger,
-    except with just plain old code. 
-    E.g., a breakpoint can just be an STM transaction that 'retry's 
+    except with just plain old code.
+    E.g., a breakpoint can just be an STM transaction that 'retry's
     on a global boolean TVar when it's false
     Re-add a REPL that can be used to query program information.
     Add tools to place and record state history into global variables that can be
     queried by the REPL.
     Be sure to compare these with ekg, GHC's eventlog.
-    
+
 [ ] Check if we need foreign-store at all; it seems like global MVars would do the trick just as well.
     (note: I think I tried this and MVars are in fact cleared upon recompilations)
 
@@ -66,7 +69,7 @@ DONE
     I'm guessing that programs run under Halive will currently get Halive's own command line args.
     We could use the -- convention to separate halive arguments from program arguments,
     and call withArgs before running the program's "main".
-    
+
     Once we've got this, we should be able to live edit Halive's source with Halive which should
     be a fun demo.
     (done thanks to Jonathan Geddes @jargv !)
@@ -74,10 +77,10 @@ DONE
 NOTES:
 
 I couldn't make halive as a library due to an oddity with
-ghc @rpaths suddently not resolving. 
+ghc @rpaths suddently not resolving.
 
 Should you base things off the code, be aware that executables
-must be built with the -dynamic flag for ghc or else strange errors 
+must be built with the -dynamic flag for ghc or else strange errors
 may occur when interfacing with external libraries like CoreFoundation
 (GHCi uses this flag for its executable as well).
 

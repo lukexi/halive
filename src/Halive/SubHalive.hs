@@ -14,6 +14,8 @@ module Halive.SubHalive (
 import GHC
 #if __GLASGOW_HASKELL__ >= 800
 import GHC.LanguageExtensions
+#else
+import Module
 #endif
 import DynFlags
 import Exception
@@ -25,7 +27,6 @@ import StringBuffer
 
 --import Packages
 import Linker
-import Module
 
 import Control.Monad
 import Control.Monad.IO.Class

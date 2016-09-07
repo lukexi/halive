@@ -17,4 +17,8 @@ main = do
              readTChan (recResultTChan barRecompiler))
         case result of
             Left errors -> putStrLn (concat errors)
-            Right value -> putStrLn (getCompiledValue value)
+            Right value -> case getCompiledValue value of
+                Just value -> do
+                    putStrLn value
+                Nothing -> do
+                    putStrLn "Error: foo or bar was not of type String"

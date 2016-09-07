@@ -67,11 +67,16 @@ forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
     predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     -- If an ignore time is set, ignore file changes for the next 100 ms
     let ignoreTime = 0.1
+
+    -- Configures debounce time for fsnotify
+    let watchConfig = defaultConfig
+            { confDebounce = Debounce 0.1 }
     stopMVar <- newEmptyMVar
-    _ <- forkIO . withManager $ \manager -> do
+    _ <- forkIO . withManagerConf watchConfig $ \manager -> do
         let watchDirectory = takeDirectory fileName
 
         stop <- watchTree manager watchDirectory predicate $ \e -> do
+            print e
             mTimeToIgnore <- atomically $ readTVar ignoreEventsNear
             let timeOfEvent = eventTime e
                 shouldIgnore = case mTimeToIgnore of
@@ -81,10 +86,10 @@ forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
                 if (shouldReadFile == ReadFileOnEvents)
                     then do
                         fileContents <- readFile fileName
-                            `catch` (\e -> do
+                            `catch` (\err -> do
                                 putStrLn $
                                     "Event listener failed to read " ++ fileName ++
-                                    ": " ++ show (e::SomeException)
+                                    ": " ++ show (err::SomeException)
                                 return "")
                         let !_len = length fileContents
                         writeTChanIO eventChan (Right fileContents)

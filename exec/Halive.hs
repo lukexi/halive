@@ -61,14 +61,14 @@ recompiler mainFileName importPaths' = do
         waitForTypecheckSignal = liftIO (takeMVar typecheckLock)
         sendTypecheckSignal    = putMVar typecheckLock ()
 
-    mainThreadID <- myThreadId    
+    mainThreadID <- myThreadId
     typecheckSuccessful <- newIORef True
     _ <- forkOS . withGHCSession' mainThreadID mainFileName importPaths' . forever $ do
         _ <- waitForTypecheckSignal
         liftIO (writeIORef typecheckSuccessful True)
         let onFailure = liftIO (writeIORef typecheckSuccessful False)
-        gcatch 
-            (typecheckTargets onFailure) 
+        gcatch
+            (typecheckTargets onFailure)
             (\(_x :: SomeException) -> onFailure)
         success <- liftIO (readIORef typecheckSuccessful)
         when success $ do
@@ -77,7 +77,7 @@ recompiler mainFileName importPaths' = do
             checkIfMainIsDone >>= \case
                 False -> liftIO (killThread mainThreadId)
                 True  -> return ()
-            
+
             sendRecompileSignal
 
     -- Watch for changes and recompile whenever they occur
@@ -87,12 +87,12 @@ recompiler mainFileName importPaths' = do
         _ <- readChan watcher
 
         -- The main thread waits for our signal to let us know
-        -- that the file has chainged again, to keep from 
+        -- that the file has chainged again, to keep from
         -- endlessly trying to recompile a broken file,
         -- or endlessly re-running a working batch program.
         sendTypecheckSignal
-       
-    
+
+
     -- Start up the GHC session that will compile and run the app
     withGHCSession' mainThreadID mainFileName importPaths' . forever $ do
         -- Blocks until the file watcher has told us there is something new to do
@@ -109,7 +109,7 @@ withGHCSession' mainThreadID mainFileName extraImportPaths action = do
         ghcSessionConfig = defaultGHCSessionConfig
             { gscImportPaths = mainFilePath:extraImportPaths
             , gscFixDebounce = NoDebounceFix
-            --, gscCompilationMode = Compiled
+            , gscCompilationMode = Compiled
             }
     defaultErrorHandler defaultFatalMessager defaultFlushOut $
         withGHCSession mainThreadID ghcSessionConfig $ do
@@ -130,16 +130,16 @@ typecheckTargets onFailure = handleSourceError (\e -> onFailure >> printExceptio
 
     -- Reload the main target
     loadSuccess <- load LoadAllTargets
-    if failed loadSuccess 
+    if failed loadSuccess
         then onFailure
-        else 
+        else
             -- Parse and typecheck modules to trigger any SourceErrors therein
             forM_ graph (typecheckModule <=< parseModule)
 
 -- | Prints and masks all exceptions
 logCaughtExceptions :: ExceptionMonad m => m () -> m ()
-logCaughtExceptions a = gcatch a 
-    (\(x :: SomeException) -> 
+logCaughtExceptions a = gcatch a
+    (\(x :: SomeException) ->
         liftIO $ putStrLn ("Caught exception during recompileTargetMain: " ++ show x))
 
 -- Recompiles the current targets
@@ -154,7 +154,7 @@ recompileTargetMain = logCaughtExceptions $ handleSourceError printException $ d
     unless (failed loadSuccess) $ do
         -- We must parse and typecheck modules before they'll be available for usage
         forM_ graph (typecheckModule <=< parseModule)
-        
+
         -- Load the dependencies of the main target
         --setContext $ map (IIModule . ms_mod_name) graph
         setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
@@ -163,10 +163,10 @@ recompileTargetMain = logCaughtExceptions $ handleSourceError printException $ d
         -- Run the target file's "main" function
         rr <- runStmt "main" RunToCompletion
         liftIO $ case rr of
-            RunOk _ -> 
+            RunOk _ ->
                 putStrLn "OK"
-            RunException exception -> 
+            RunException exception ->
                 print exception
-            RunBreak _ _ _ -> 
+            RunBreak _ _ _ ->
                 putStrLn "Breakpoint"
 
