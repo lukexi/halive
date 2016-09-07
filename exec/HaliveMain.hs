@@ -19,18 +19,22 @@ import System.FilePath
 
 separateArgs :: [String] -> ([String], [String])
 separateArgs args = (haliveArgs, drop 1 targetArgs)
-  where (haliveArgs, targetArgs) = break (== "--") args
+    where (haliveArgs, targetArgs) = break (== "--") args
 
 main :: IO ()
 main = do
-  (args, targetArgs) <- separateArgs <$> getArgs
-  case args of
-    [] -> putStrLn "Usage: halive <main.hs> <include dir> [-- <args to myapp>]"
-    (mainFileName:includeDirs) -> do
-      let mainFilePath = dropFileName mainFileName
-      setEnv "Halive Active" "Yes"
-      putStrLn banner
-      withArgs targetArgs $ startRecompiler mainFileName (mainFilePath:includeDirs)
+    (args, targetArgs) <- separateArgs <$> getArgs
+    case args of
+        [] -> putStrLn "Usage: halive <main.hs> <include dir> [-- <args to myapp>]"
+        (mainFileName:includeDirs) -> do
+            let mainFilePath = dropFileName mainFileName
+            setEnv "Halive Active" "Yes"
+            putStrLn banner
+            withArgs targetArgs $ startRecompiler mainFileName (mainFilePath:includeDirs)
+
+printBanner :: String -> IO ()
+printBanner title = putStrLn $ ribbon ++ " " ++ title ++ " " ++ ribbon
+    where ribbon = replicate 25 '*'
 
 startRecompiler :: FilePath -> [FilePath] -> IO b
 startRecompiler mainFileName includeDirs = do
@@ -48,8 +52,11 @@ startRecompiler mainFileName includeDirs = do
     _ <- forkIO $ forever $ do
         result <- atomically $ readTChan (recResultTChan recompiler)
         case result of
-            Left errors -> putStrLn (concat errors)
+            Left errors -> do
+                printBanner "Compilation Errors, Waiting...     "
+                putStrLn (concat errors)
             Right newCode -> do
+                printBanner "Compilation Success, Relaunching..."
                 atomically $ writeTChan newCodeTChan newCode
                 mainIsRunning <- readIORef isMainRunning
                 when mainIsRunning $ killThread mainThreadId
@@ -57,10 +64,10 @@ startRecompiler mainFileName includeDirs = do
     forever $ do
         newCode <- atomically $ readTChan newCodeTChan
         case getCompiledValue newCode of
-            Just mainFunc -> do
+            Just (mainFunc :: IO ()) -> do
                 writeIORef isMainRunning True
-                (mainFunc :: IO ()) `catch` (\(x :: SomeException) ->
-                    putStrLn ("App killed: " ++ show x))
+                mainFunc `catch` (\x ->
+                    putStrLn ("App killed: " ++ show (x :: SomeException)))
                 writeIORef isMainRunning False
             Nothing -> do
                 putStrLn "main was not of type IO ()"

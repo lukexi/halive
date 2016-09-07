@@ -61,7 +61,7 @@ main = do
         -- Render our scene
         --putStrLn "getWinSize"
         V2 w h <- get (SDL.windowSize win)
-        let projection = perspective 45 (fromIntegral w/ fromIntegral h) 0.01 1000
+        let projection = perspective 45 (fromIntegral w / fromIntegral h) 0.01 1000
             model      = mkTransformation (axisAngle (V3 0 1 1) now) (V3 (sin now) 0 (-4))
             view       = lookAt (V3 0 2 5) (V3 0 0 (-4)) (V3 0 1 0)
             mvp        = projection !*! view !*! model

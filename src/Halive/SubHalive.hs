@@ -191,19 +191,24 @@ recompileExpressionInFile fileName mFileContents expression =
         --logIO $ "Recompiling " ++ show (fileName, expression)
         -- Prepend a '*' to prevent GHC from trying to load from any previously compiled object files
         -- see http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
+        --logIO "guessTarget"
         target <- guessTarget ('*':fileName) Nothing
         mFileContentsBuffer <- fileContentsStringToBuffer mFileContents
+        --logIO "setTargets"
         setTargets [target { targetContents = mFileContentsBuffer }]
 
         errorsRef <- liftIO (newIORef "")
         dflags <- getSessionDynFlags
+        --logIO "setSessionDynFlags"
         _ <- setSessionDynFlags dflags { log_action = logHandler errorsRef }
 
         -- Get the dependencies of the main target
+        --logIO "depanal"
         graph <- depanal [] False
 
         --logIO $ "Loading " ++ show (fileName, expression)
         -- Reload the main target
+        --logIO "load LoadAllTargets"
         loadSuccess <- load LoadAllTargets
         --logIO $ "Done loading " ++ show (fileName, expression)
 
@@ -212,17 +217,21 @@ recompileExpressionInFile fileName mFileContents expression =
                 errors <- liftIO (readIORef errorsRef)
                 return (Left [errors])
             else do
+                --logIO "typecheckModule"
                 -- We must parse and typecheck modules before they'll be available for usage
                 forM_ graph (typecheckModule <=< parseModule)
 
                 -- Load the dependencies of the main target
+
                 -- This brings all top-level definitions into scope (whether exported or not),
                 -- but only works on interpreted modules
                 --setContext (IIModule . ms_mod_name <$> graph)
+
                 setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
 
                 --logIO $ "Compiling " ++ show (fileName, expression)
                 --result <- compileExpr expression
+                --logIO "dynCompileExpr"
                 result <- dynCompileExpr expression
                 --logIO $ "Done compiling " ++ show (fileName, expression)
 
