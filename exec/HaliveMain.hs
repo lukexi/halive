@@ -41,7 +41,8 @@ startRecompiler mainFileName includeDirs = do
     ghc <- startGHC
         (defaultGHCSessionConfig
             { gscImportPaths = includeDirs
-            , gscCompilationMode = Compiled
+            -- , gscCompilationMode = Compiled
+            , gscCompilationMode = Interpreted
             })
     recompiler <- recompilerForExpression ghc mainFileName "main" True
 

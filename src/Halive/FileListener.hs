@@ -116,3 +116,29 @@ onTChanRead eventChan action =
     tryReadTChanIO eventChan >>= \case
         Just _  -> action
         Nothing -> return ()
+
+-- | Creates a getter for a set of resources that will be rebuilt whenever the file changes.
+-- Takes a filename and an action to create a resource based on that file.
+-- getWatchedResource <- makeWatchedResource "resources/shapes.frag" $ do
+--        shader <- createShaderProgram "resources/shapes.vert" "resources/shapes.frag"
+--        useProgram shader
+--
+--        uTime       <- getShaderUniform shader "uTime"
+--
+--        (quadVAO, quadVertCount) <- makeScreenSpaceQuad shader
+--        return (quadVAO, quadVertCount, uTime)
+-- Then use
+-- (quadVAO, quadVertCount, uResolution, uMouse, uTime) <- getWatchedResource
+-- in main loop
+makeWatchedResource fileName action = do
+    absFileName <- makeAbsolute fileName
+    listener <- eventListenerForFile absFileName JustReportEvents
+
+    resourceRef <- newIORef =<< action
+
+    -- Checks event listener, rebuilds resource if needed,
+    -- then returns newest version of resource
+    let getWatchedResource = do
+            onFileEvent listener $ writeIORef resourceRef =<< action
+            readIORef resourceRef
+    return getWatchedResource
