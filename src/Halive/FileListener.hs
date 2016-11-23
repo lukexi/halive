@@ -14,6 +14,7 @@ import Control.Monad.Trans
 import Control.Monad
 import Data.Time
 import Control.Exception
+import Data.IORef
 
 type FileEventChan = TChan FSNotify.Event
 
