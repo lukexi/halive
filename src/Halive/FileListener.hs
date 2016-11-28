@@ -131,6 +131,7 @@ onTChanRead eventChan action =
 -- Then use
 -- (quadVAO, quadVertCount, uResolution, uMouse, uTime) <- getWatchedResource
 -- in main loop
+makeWatchedResource :: FilePath -> IO a -> IO (IO a)
 makeWatchedResource fileName action = do
     absFileName <- makeAbsolute fileName
     listener <- eventListenerForFile absFileName JustReportEvents
