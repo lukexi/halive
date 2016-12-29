@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                halive
-version:             0.1.0.8
+version:             0.1.1
 synopsis:            A live recompiler
 description:
   Live recompiler for Haskell
@@ -42,7 +42,7 @@ library
   ghc-prof-options:    -Wall -O2 -fprof-auto
   ghc-options:         -Wall -O2
   build-depends:
-    base,
+    base>=4.7 && <5,
     foreign-store,
     containers,
     mtl,
@@ -83,7 +83,7 @@ executable halive
     transformers,
     directory,
     filepath,
-    fsnotify >= 0.2.1,
+    fsnotify,
     process,
     stm,
     halive

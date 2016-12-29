@@ -1,10 +1,15 @@
 # Revision history for halive
 
-## 0.1.0.8  -- TBD
-* Windows support!
-* Add the demo as a test-suite to manage its dependencies
+## 0.1.1.  -- 2016-12-28
+* GHC8 support
+* Windows support
+* Only restarts your program once all type errors are fixed.
+* Halive-as-a-library, aka "SubHalive"
+* halive exe now uses SubHalive as core.
+* Add persistState utility to store/restore state in a State monad, for easily preserving program state across recompilations
 * Prioritize stack's "local-pkg-db:" over "snapshot-pkg-db:" to allow overriding packages just as stack does
-* Now runs a typechecker thread in the background, and only restarts your program once all type errors are fixed.
+* Switch to SDL for demo
+* Add the demo as a test-suite to manage its dependencies
 
 ## 0.1.0.7  -- 2015-08-12
 * Implement support for stack projects
