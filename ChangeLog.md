@@ -1,5 +1,9 @@
 # Revision history for halive
 
+## 0.1.2.  -- 2017-01-02
+* Restores ability for Halive to watch surrounding files in a dir
+	(and lays groundwork to allow configuration of which filetypes are watched)
+
 ## 0.1.1.  -- 2016-12-28
 * GHC8 support
 * Windows support

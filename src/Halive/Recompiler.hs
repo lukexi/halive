@@ -78,22 +78,43 @@ recompilerForExpression :: MonadIO m
                         -> String
                         -> Bool
                         -> m Recompiler
-recompilerForExpression ghcChan filePath expressionString compileOnce = liftIO $ do
+recompilerForExpression ghcChan filePath expressionString compileImmediately =
+    recompilerWithConfig ghcChan RecompilerConfig
+        { rccWatchAll = Nothing
+        , rccExpression = expressionString
+        , rccFilePath = filePath
+        , rccCompileImmediately = compileImmediately
+        }
+
+data RecompilerConfig = RecompilerConfig
+    { rccWatchAll :: Maybe (FilePath, [String]) -- if Nothing, just watch given file
+    , rccExpression :: String
+    , rccFilePath :: FilePath
+    , rccCompileImmediately :: Bool
+    }
+
+recompilerWithConfig :: MonadIO m
+                     => TChan CompilationRequest
+                     -> RecompilerConfig
+                     -> m Recompiler
+recompilerWithConfig ghcChan RecompilerConfig{..} = liftIO $ do
     resultTChan <- newTChanIO
     let compilationRequest = CompilationRequest
-            { crFilePath         = filePath
-            , crExpressionString = expressionString
+            { crFilePath         = rccFilePath
+            , crExpressionString = rccExpression
             , crResultTChan      = resultTChan
             , crFileContents     = Nothing
             }
 
 
     -- Compile for the first time immediately
-    when compileOnce $
+    when rccCompileImmediately $
         writeTChanIO ghcChan compilationRequest
 
     -- Recompile on file event notifications
-    fileEventListener <- eventListenerForFile filePath JustReportEvents
+    fileEventListener <- case rccWatchAll of 
+        Nothing -> eventListenerForFile rccFilePath JustReportEvents
+        Just (watchDir, fileTypes) -> eventListenerForDirectory watchDir fileTypes
     listenerThread <- forkIO . forever $ do
         _ <- readFileEvent fileEventListener
         writeTChanIO ghcChan compilationRequest

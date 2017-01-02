@@ -43,12 +43,12 @@ fileModifiedPredicate fileName event = case event of
     Modified path _ -> path == fileName
     _               -> False
 
-eventListenerForFile :: (MonadIO m) => FilePath -> ShouldReadFile -> m FileEventListener
+eventListenerForFile :: MonadIO m => FilePath -> ShouldReadFile -> m FileEventListener
 eventListenerForFile fileName shouldReadFile = liftIO $ do
     eventChan        <- newTChanIO
     ignoreEventsNear <- newTVarIO Nothing
 
-    stopMVar <- forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear
+    stopMVar <- forkFileListenerThread fileName shouldReadFile eventChan ignoreEventsNear
 
     return FileEventListener
         { felEventTChan = eventChan
@@ -56,15 +56,54 @@ eventListenerForFile fileName shouldReadFile = liftIO $ do
         , felStopMVar = stopMVar
         }
 
-killFileEventListener :: (MonadIO m) => FileEventListener -> m ()
+eventListenerForDirectory :: MonadIO m => FilePath -> [String] -> m FileEventListener
+eventListenerForDirectory watchDirectory fileTypes = liftIO $ do
+    eventChan        <- newTChanIO
+    ignoreEventsNear <- newTVarIO Nothing
+
+    stopMVar <- forkDirectoryListenerThread watchDirectory fileTypes eventChan
+
+    return FileEventListener
+        { felEventTChan = eventChan
+        , felIgnoreNextEventsNear = ignoreEventsNear
+        , felStopMVar = stopMVar
+        }
+
+killFileEventListener :: MonadIO m => FileEventListener -> m ()
 killFileEventListener eventListener = liftIO $ putMVar (felStopMVar eventListener) ()
 
-forkEventListenerThread :: FilePath
-                        -> ShouldReadFile
-                        -> TChan (Either FSNotify.Event String)
-                        -> TVar (Maybe UTCTime)
-                        -> IO (MVar ())
-forkEventListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
+-- Pass a list like ["hs", "pd", "frag", "vert"] to match only those filetypes,
+-- or an empty list to match all
+modifiedWithExtensionPredicate :: [String] -> FSNotify.Event -> Bool
+modifiedWithExtensionPredicate fileTypes event = case event of
+    Modified path _ -> null fileTypes || drop 1 (takeExtension path) `elem` fileTypes
+    _               -> False
+
+forkDirectoryListenerThread :: FilePath
+                            -> [String]
+                            -> TChan (Either FSNotify.Event String)
+                            -> IO (MVar ())
+forkDirectoryListenerThread watchDirectory fileTypes eventChan = do
+    let predicate = modifiedWithExtensionPredicate fileTypes
+
+    -- Configures debounce time for fsnotify
+    let watchConfig = defaultConfig
+            { confDebounce = Debounce 0.1 }
+    stopMVar <- newEmptyMVar
+    _ <- forkIO . withManagerConf watchConfig $ \manager -> do
+
+        stop <- watchTree manager watchDirectory predicate $ \e -> do
+            writeTChanIO eventChan (Left e)
+        () <- takeMVar stopMVar
+        stop
+    return stopMVar
+
+forkFileListenerThread :: FilePath
+                       -> ShouldReadFile
+                       -> TChan (Either FSNotify.Event String)
+                       -> TVar (Maybe UTCTime)
+                       -> IO (MVar ())
+forkFileListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
     predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
     -- If an ignore time is set, ignore file changes for the next 100 ms
     let ignoreTime = 0.1

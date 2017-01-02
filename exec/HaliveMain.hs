@@ -44,7 +44,15 @@ startRecompiler mainFileName includeDirs = do
             -- , gscCompilationMode = Compiled
             , gscCompilationMode = Interpreted
             })
-    recompiler <- recompilerForExpression ghc mainFileName "main" True
+
+    let fileTypes = ["hs", "pd", "frag", "vert"]
+
+    recompiler <- recompilerWithConfig ghc RecompilerConfig
+        { rccWatchAll = Just (".", fileTypes)
+        , rccExpression = "main"
+        , rccFilePath = mainFileName
+        , rccCompileImmediately = True
+        }
 
     mainThreadId <- myThreadId
 
