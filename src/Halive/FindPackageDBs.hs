@@ -1,17 +1,16 @@
-
 {-# LANGUAGE LambdaCase #-}
 module Halive.FindPackageDBs where
 import Data.Maybe
 
+import Control.Monad.IO.Class
+import Data.Char
+import Data.List
 import System.Directory
 import System.FilePath
 import System.Process
-import Data.List
-import Data.Char
-import Control.Monad.IO.Class
 
-import GHC
 import DynFlags
+import GHC
 
 -- | Extract the sandbox package db directory from the cabal.sandbox.config file.
 --   Exception is thrown if the sandbox config file is broken.
@@ -29,10 +28,10 @@ mightExist f = do
     return $ if exists then (Just f) else (Nothing)
 
 addExtraPkgConfs :: DynFlags -> [FilePath] -> DynFlags
-addExtraPkgConfs dflags pkgConfs = dflags 
-    { extraPkgConfs = 
+addExtraPkgConfs dflags pkgConfs = dflags
+    { extraPkgConfs =
         let newPkgConfs = map PkgConfFile pkgConfs
-        in (newPkgConfs ++) . extraPkgConfs dflags 
+        in (newPkgConfs ++) . extraPkgConfs dflags
     }
 
 
@@ -48,7 +47,7 @@ getSandboxDb = do
     return $ (extractKey "package-db:" =<< config)
 
 updateDynFlagsWithCabalSandbox :: MonadIO m => DynFlags -> m DynFlags
-updateDynFlagsWithCabalSandbox dflags = 
+updateDynFlagsWithCabalSandbox dflags =
     liftIO getSandboxDb >>= \case
         Nothing -> return dflags
         Just sandboxDB -> do
@@ -70,9 +69,16 @@ getStackDb = do
             return . Just . catMaybes $ map (flip extractKey pathInfo) ["local-pkg-db:", "snapshot-pkg-db:"]
 
 updateDynFlagsWithStackDB :: MonadIO m => DynFlags -> m DynFlags
-updateDynFlagsWithStackDB dflags = 
+updateDynFlagsWithStackDB dflags =
     liftIO getStackDb >>= \case
         Nothing -> return dflags
         Just stackDBs -> do
             let pkgs = map PkgConfFile stackDBs
             return dflags { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags }
+
+updateDynFlagsWithGlobalDB :: MonadIO m => DynFlags -> m DynFlags
+updateDynFlagsWithGlobalDB dflags = do
+    xs <- liftIO $ lines <$> readProcess "ghc" ["--print-global-package-db"] ""
+    case xs of
+        [pkgconf] -> return dflags { extraPkgConfs = (PkgConfFile pkgconf :) . extraPkgConfs dflags }
+        _ -> return dflags

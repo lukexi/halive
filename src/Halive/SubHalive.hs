@@ -101,9 +101,10 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         dflags2 <- updateDynFlagsWithCabalSandbox dflags1
         -- If this is a stack project, add its package DBs
         dflags3 <- updateDynFlagsWithStackDB dflags2
+        dflags4 <- updateDynFlagsWithGlobalDB dflags3
 
         -- Make sure we're configured for live-reload
-        let dflags4 = dflags3 { hscTarget   = if gscCompilationMode == Compiled then HscAsm else HscInterpreted
+        let dflags5 = dflags4 { hscTarget   = if gscCompilationMode == Compiled then HscAsm else HscInterpreted
                               , optLevel    = if gscCompilationMode == Compiled then 2 else 0
                               , ghcLink     = LinkInMemory
                               , ghcMode     = CompManager
@@ -121,13 +122,13 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
             -- about a half second (i.e., it won't recompile)
             -- This fixes that, but probably isn't quite what we want
             -- since it will cause extra files to be recompiled...
-            dflags5 = if gscFixDebounce == DebounceFix
-                        then dflags4 `gopt_set` Opt_ForceRecomp
-                        else dflags4
-            dflags6 = foldl xopt_set dflags5 gscLanguageExtensions
+            dflags6 = if gscFixDebounce == DebounceFix
+                        then dflags5 `gopt_set` Opt_ForceRecomp
+                        else dflags5
+            dflags7 = foldl xopt_set dflags6 gscLanguageExtensions
 
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
-        packageIDs <- setSessionDynFlags dflags6
+        packageIDs <- setSessionDynFlags dflags7
 
 
         -- Works around a yet-unidentified segfault when loading
