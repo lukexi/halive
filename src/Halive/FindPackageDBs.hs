@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Halive.FindPackageDBs where
 import Data.Maybe
 
@@ -8,7 +9,7 @@ import Data.List
 import System.Directory
 import System.FilePath
 import System.Process
-
+import Control.Exception
 import DynFlags
 import GHC
 
@@ -79,6 +80,7 @@ updateDynFlagsWithStackDB dflags =
 updateDynFlagsWithGlobalDB :: MonadIO m => DynFlags -> m DynFlags
 updateDynFlagsWithGlobalDB dflags = do
     xs <- liftIO $ lines <$> readProcess "ghc" ["--print-global-package-db"] ""
+        `catch` (\(e :: SomeException) -> return [])
     case xs of
         [pkgconf] -> return dflags { extraPkgConfs = (PkgConfFile pkgconf :) . extraPkgConfs dflags }
         _ -> return dflags
