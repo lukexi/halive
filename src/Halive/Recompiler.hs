@@ -40,7 +40,9 @@ startGHC ghcSessionConfig = liftIO $ do
     ghcChan <- newTChanIO
 
     -- Grab this thread's ID (need to run this on the main thread, of course)
-    mainThreadID <- myThreadId
+    mainThreadID <- case gscMainThreadID ghcSessionConfig of
+        Just threadID -> return threadID
+        Nothing -> myThreadId
 
     initialFileLock <- liftIO newEmptyMVar
 
@@ -112,7 +114,7 @@ recompilerWithConfig ghcChan RecompilerConfig{..} = liftIO $ do
         writeTChanIO ghcChan compilationRequest
 
     -- Recompile on file event notifications
-    fileEventListener <- case rccWatchAll of 
+    fileEventListener <- case rccWatchAll of
         Nothing -> eventListenerForFile rccFilePath JustReportEvents
         Just (watchDir, fileTypes) -> eventListenerForDirectory watchDir fileTypes
     listenerThread <- forkIO . forever $ do

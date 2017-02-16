@@ -58,6 +58,7 @@ data GHCSessionConfig = GHCSessionConfig
         -- to work around a bug where the GHC API crashes while loading libraries
         -- if the main thread is doing work (possibly due to accessing said libraries in some way)
     , gscVerbosity          :: Int
+    , gscMainThreadID       :: Maybe ThreadId
     }
 
 
@@ -72,6 +73,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscCompilationMode = Interpreted
     , gscStartupFile = Nothing
     , gscVerbosity = 0
+    , gscMainThreadID = Nothing
     }
 
 --pkgConfRefToString = \case
@@ -88,9 +90,11 @@ logIO = liftIO . putStrLn
 withGHCSession :: ThreadId -> GHCSessionConfig -> Ghc a -> IO a
 withGHCSession mainThreadID GHCSessionConfig{..} action = do
     -- Work around https://ghc.haskell.org/trac/ghc/ticket/4162
-    let restoreControlC f = do
+    let
+        restoreControlC f = do
             liftIO $ installHandler sigINT (\_signal -> killThread mainThreadID)
             f
+
     -- defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
     runGhc (Just gscLibDir) . restoreControlC $ do
         -- Get the default dynFlags
