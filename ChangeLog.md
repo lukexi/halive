@@ -1,5 +1,8 @@
 # Revision history for halive
 
+## 0.1.3.  -- 2017-02-24
+* Allows Halive to be used in a nix environment (Jude Taylor)
+
 ## 0.1.2.  -- 2017-01-02
 * Restores ability for Halive to watch surrounding files in a dir
 	(and lays groundwork to allow configuration of which filetypes are watched)
