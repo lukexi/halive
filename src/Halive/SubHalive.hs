@@ -49,8 +49,10 @@ data GHCSessionConfig = GHCSessionConfig
     , gscLibDir             :: FilePath
 #if __GLASGOW_HASKELL__ >= 800
     , gscLanguageExtensions :: [Extension]
+    , gscNoLanguageExtensions :: [Extension]
 #else
     , gscLanguageExtensions :: [ExtensionFlag]
+    , gscNoLanguageExtensions :: [ExtensionFlag]
 #endif
     , gscCompilationMode    :: CompliationMode
     , gscStartupFile        :: Maybe (FilePath, String)
@@ -69,6 +71,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscImportPaths = []
     , gscPackageDBs  = []
     , gscLanguageExtensions = []
+    , gscNoLanguageExtensions = []
     , gscLibDir = libdir
     , gscCompilationMode = Interpreted
     , gscStartupFile = Nothing
@@ -129,7 +132,9 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
             dflags6 = if gscFixDebounce == DebounceFix
                         then dflags5 `gopt_set` Opt_ForceRecomp
                         else dflags5
-            dflags7 = foldl xopt_set dflags6 gscLanguageExtensions
+            dflags7 =
+                flip (foldl xopt_unset) gscNoLanguageExtensions $
+                    foldl xopt_set dflags6 gscLanguageExtensions
 
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
         packageIDs <- setSessionDynFlags dflags7
