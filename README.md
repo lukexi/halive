@@ -81,7 +81,12 @@ and if it's still running, it will be killed and restarted on save.
 To kill Halive during run-loop type programs, you may need to hold down Ctrl-C
 to get GHC to recognize the double-Control-C-kill sequence.
 
-Halive should work on Windows and Mac, and probably Linux too (untested, please let me know if it doesn't!)
+Halive works on Windows, Mac, and Linux
+
+As a Library
+------------
+Halive can also be integrated into your own project as a library in a few lines of code. See `test/TestSubHalive.hs` for an example.
+IMPORTANT: You must link your binary with `ghc-options: -dynamic` for this to work! Otherwise you'll get mysterious linking errors on Mac and Linux.
 
 Troubleshooting
 ---------------
