@@ -124,3 +124,20 @@ https://ghc.haskell.org/trac/ghc/ticket/10442
 
 "Need option to use system gcc and binutils on Windows/msys2"
 https://ghc.haskell.org/trac/ghc/ticket/9101
+
+
+
+-- Works around a yet-unidentified segfault when loading
+-- 5/1/2016: I've implemented this in a different way,
+-- (by just passing in a file to compile that will trigger
+-- loads of all its dependencies)
+-- but this is still a viable approach... not quite as convenient though!
+--let gscPreloadPackagesForModules = ["Sound.Pd"]
+--preloadPackageKeys <- forM gscPreloadPackagesForModules $ \modName ->
+--    modulePackageKey <$> findModule (mkModuleName modName) Nothing
+--let finalPackageIDs = preloadPackageKeys ++ packageIDs
+
+
+-- This brings all top-level definitions into scope (whether exported or not),
+-- but only works on interpreted modules
+--setContext (IIModule . ms_mod_name <$> graph)

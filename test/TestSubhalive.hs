@@ -16,7 +16,7 @@ main = do
             `orElse`
              readTChan (recResultTChan barRecompiler))
         case result of
-            Left errors -> putStrLn (concat errors)
+            Left errors -> putStrLn errors
             Right value -> case getCompiledValue value of
                 Just value -> do
                     putStrLn value

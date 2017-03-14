@@ -8,6 +8,8 @@ import Control.Concurrent.STM
 import Control.Concurrent
 import Control.Monad.Trans
 import Control.Monad
+import Data.Text (Text)
+import qualified Data.Text as Text
 
 data CompilationRequest = CompilationRequest
     { crFilePath         :: FilePath
@@ -20,7 +22,7 @@ data CompilationRequest = CompilationRequest
     -- and construct those in a smarter way.
     }
 
-type CompilationResult = Either [String] CompiledValue
+type CompilationResult = Either String CompiledValue
 
 -- This is used to implement a workaround for the GHC API crashing
 -- when used after application startup, when it tries to load libraries
@@ -139,3 +141,18 @@ renameRecompilerForExpression :: MonadIO m => Recompiler
 renameRecompilerForExpression recompiler ghcChan filePath expressionString = do
     killRecompiler recompiler
     recompilerForExpression ghcChan filePath expressionString False
+
+compileExpression :: MonadIO m
+                  => TChan CompilationRequest
+                  -> Text
+                  -> String
+                  -> m (TChan CompilationResult)
+compileExpression ghcChan code expressionString = do
+    resultTChan <- liftIO newTChanIO
+    liftIO $ atomically $ writeTChan ghcChan $ CompilationRequest
+        { crFilePath         = ""
+        , crExpressionString = expressionString
+        , crResultTChan      = resultTChan
+        , crFileContents     = Just $ Text.unpack code
+        }
+    return resultTChan

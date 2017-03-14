@@ -63,7 +63,7 @@ startRecompiler mainFileName includeDirs = do
         case result of
             Left errors -> do
                 printBanner "Compilation Errors, Waiting...     "
-                putStrLn (concat errors)
+                putStrLn errors
             Right newCode -> do
                 printBanner "Compilation Success, Relaunching..."
                 atomically $ writeTChan newCodeTChan newCode

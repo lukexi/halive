@@ -28,8 +28,8 @@ mightExist f = do
     exists <- doesFileExist f
     return $ if exists then (Just f) else (Nothing)
 
-addExtraPkgConfs :: DynFlags -> [FilePath] -> DynFlags
-addExtraPkgConfs dflags pkgConfs = dflags
+addExtraPkgConfs :: [FilePath] -> DynFlags -> DynFlags
+addExtraPkgConfs pkgConfs dflags = dflags
     { extraPkgConfs =
         let newPkgConfs = map PkgConfFile pkgConfs
         in (newPkgConfs ++) . extraPkgConfs dflags
@@ -80,7 +80,7 @@ updateDynFlagsWithStackDB dflags =
 updateDynFlagsWithGlobalDB :: MonadIO m => DynFlags -> m DynFlags
 updateDynFlagsWithGlobalDB dflags = do
     xs <- liftIO $ lines <$> readProcess "ghc" ["--print-global-package-db"] ""
-        `catch` (\(e :: SomeException) -> return [])
+        `catch` (\(_e :: SomeException) -> return [])
     case xs of
         [pkgconf] -> return dflags { extraPkgConfs = (PkgConfFile pkgconf :) . extraPkgConfs dflags }
         _ -> return dflags
