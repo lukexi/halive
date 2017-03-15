@@ -141,3 +141,6 @@ https://ghc.haskell.org/trac/ghc/ticket/9101
 -- This brings all top-level definitions into scope (whether exported or not),
 -- but only works on interpreted modules
 --setContext (IIModule . ms_mod_name <$> graph)
+
+-- Use GHC.dynamicGhc to detect dynamicity of executable and respond appropriately or error out
+https://github.com/mvdan/hint/pull/18/files

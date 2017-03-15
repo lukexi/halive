@@ -37,6 +37,7 @@ import Halive.FindPackageDBs
 import Control.Concurrent
 import System.Signal
 import Data.Dynamic
+import Paths_halive
 
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
@@ -169,26 +170,38 @@ recompileExpressionInFile fileName mFileContents expression =
             \dflags -> setSessionDynFlags dflags
                 { log_action = logHandler errorsRef }
 
-        -- Set the target
-        target <- guessTarget' fileName
-
         mFileContentsBuffer <- mapM fileContentsStringToBuffer mFileContents
 
+        -- Set the target
+        target <- case fileName of
+            -- We'd like to just use a Module name for the target,
+            -- but load/depanal fails with "Foo is a package module"
+            -- As a workaround, we install a blank dummy X.hs file
+            -- and use it as the target.
+            "" -> guessTarget' =<< liftIO (getDataFileName "X.hs")
+            other -> guessTarget' other
+
+        logIO "Setting targets..."
         setTargets [target { targetContents = mFileContentsBuffer }]
 
-        -- Get the dependencies of the main target (and update the session with them)
-        graph <- depanal [] False
+
 
         -- Reload the main target
+        logIO "Loading..."
         loadSuccess <- load LoadAllTargets
 
         if succeeded loadSuccess
             then do
-                -- We must parse and typecheck modules before they'll be available for usage
-                forM_ graph (typecheckModule <=< parseModule)
+
+                logIO "Analyzing deps..."
+                -- Get the dependencies of the main target (and update the session with them)
+                graph <- depanal [] False
+                -- -- We must parse and typecheck modules before they'll be available for usage
+                -- forM_ graph (typecheckModule <=< parseModule)
 
                 -- Load the dependencies of the main target
-                setContext (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
+                setContext $
+                    (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
 
                 -- Compile the expression and return the result
                 result <- dynCompileExpr expression

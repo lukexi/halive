@@ -1,4 +1,4 @@
 flags: {}
 packages:
 - '.'
-resolver: lts-7.14
+resolver: lts-8.2

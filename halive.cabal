@@ -25,38 +25,43 @@ category:            Development
 build-type:          Simple
 cabal-version:       >=1.10
 
+data-files: X.hs
+
 source-repository head
   type: git
   location: git://github.com/lukexi/halive.git
 
+
 library
   hs-source-dirs:      src
   exposed-modules:
+    Halive
     Halive.Utils
     Halive.Concurrent
     Halive.FindPackageDBs
     Halive.SubHalive
     Halive.Recompiler
     Halive.FileListener
+    Paths_halive
   default-language:    Haskell2010
   ghc-prof-options:    -Wall -O2 -fprof-auto
   ghc-options:         -Wall -O2
   build-depends:
-    base>=4.7 && <5,
-    foreign-store,
-    containers,
-    mtl,
-    ghc,
-    ghc-paths,
-    filepath,
-    fsnotify,
-    process,
-    transformers,
-    directory,
-    stm,
-    time,
-    signal,
-    text
+      base >=4.7 && <5
+    , foreign-store
+    , containers
+    , mtl
+    , ghc
+    , ghc-paths
+    , filepath
+    , fsnotify
+    , process
+    , transformers
+    , directory
+    , stm
+    , time
+    , signal
+    , text
   if impl(ghc >= 8)
     build-depends:
       ghc-boot
@@ -82,45 +87,45 @@ executable halive
     Banner
   -- other-extensions:
   build-depends:
-    base,
-    ghc,
-    ghc-paths,
-    transformers,
-    directory,
-    filepath,
-    fsnotify,
-    process,
-    stm,
-    halive
+      base
+    , ghc
+    , ghc-paths
+    , transformers
+    , directory
+    , filepath
+    , fsnotify
+    , process
+    , stm
+    , halive
 
-test-suite demo
-  type: exitcode-stdio-1.0
-  default-language: Haskell2010
-  main-is: Main.hs
-  other-modules:
-    Cube
-    Green
-    Window
-    Shader
-  hs-source-dirs: demo
-  build-depends:
-    base,
-    gl,
-    sdl2,
-    halive,
-    linear,
-    foreign-store,
-    random,
-    text,
-    bytestring,
-    mtl,
-    time
+--test-suite demo
+--  type: exitcode-stdio-1.0
+--  default-language: Haskell2010
+--  main-is: Main.hs
+--  other-modules:
+--    Cube
+--    Green
+--    Window
+--    Shader
+--  hs-source-dirs: demo
+--  build-depends:
+--    base,
+--    gl,
+--    sdl2,
+--    halive,
+--    linear,
+--    foreign-store,
+--    random,
+--    text,
+--    bytestring,
+--    mtl,
+--    time
 
 test-suite subhalive
   type:                exitcode-stdio-1.0
   main-is:             TestSubhalive.hs
   hs-source-dirs:      test
-  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N -dynamic
   build-depends:       base
                      , halive
                      , mtl
@@ -130,3 +135,32 @@ test-suite subhalive
                      , filepath
                      , stm
   default-language:    Haskell2010
+
+test-suite compileexpr
+  type:                exitcode-stdio-1.0
+  main-is:             TestCompileExpr.hs
+  hs-source-dirs:      test
+  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N  -dynamic
+  build-depends:       base
+                     , halive
+                     , mtl
+                     , random
+                     , containers
+                     , time
+                     , filepath
+                     , stm
+  default-language:    Haskell2010
+
+
+test-suite testghc
+  type:                exitcode-stdio-1.0
+  main-is:             TestGHC.hs
+  hs-source-dirs:      test
+  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N  -dynamic
+  build-depends:       base
+                     , time
+                     , filepath
+                     , ghc
+                     , ghc-paths
+  default-language:    Haskell2010
+
