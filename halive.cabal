@@ -25,6 +25,12 @@ category:            Development
 build-type:          Simple
 cabal-version:       >=1.10
 
+-- We place this somewhere globally accessible just to act as a
+-- dummy file when calling compileString.
+-- FIXME: a better idea would be to touch a temporary
+-- file just before compilation and use that instead; that could be given
+-- a sane name to help with error messages.
+-- (See test/TestGHC.hs and Halive/SubHalive.hs:181)
 data-files: X.hs
 
 source-repository head
