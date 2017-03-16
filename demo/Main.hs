@@ -5,14 +5,18 @@ import Linear
 import System.Random
 import Data.Time
 import Control.Monad
+import Control.Monad.State
 import Data.Bits
+import Text.Show.Pretty
+import Data.Maybe
 
 import Halive.Utils
 import Cube
 import Shader
 import Window
 
-import SDL
+import SDL hiding (get)
+import qualified SDL as SDL
 
 
 import qualified Green as Green -- Try changing the green amount
@@ -46,9 +50,26 @@ main = do
     -- Sometimes it's useful to know if we're running under Halive or not
     putStrLn . ("Running under Halive: " ++ ) . show =<< isHaliveActive
 
-    -- do -- swap this with the next line to test immediately-returning mains
-    whileWindow win $ \events -> do
-        now <- realToFrac . utctDayTime <$> getCurrentTime
+    -- Reacquire our state from the last run, if any - otherwise create a new state
+    initialState <- reacquire 1 (return ([]::[V2 GLfloat]))
+    void . flip runStateT initialState . whileWindow win $ \events -> do
+        -- Store our state persistently in slot 1
+        persistState 1
+
+        winSize@(V2 w h) <- fmap realToFrac <$> SDL.get (SDL.windowSize win)
+
+        forM_ (catMaybes $ map matchMouse events) $ \cursorPos -> do
+            isMouseDown <- SDL.getMouseButtons
+            when (isMouseDown ButtonLeft) $ do
+                let V2 x y = (cursorPos / winSize) * 2 - 1
+                    cursorPosNDC = V2 x (negate y)
+                modify' ((cursorPosNDC :) . take 40)
+
+        -- Try turning on a stream of events
+        -- unless (null events) $
+        --     liftIO $ pPrint events
+
+        now <- realToFrac . utctDayTime <$> liftIO getCurrentTime
         -- print now -- Try turning on a stream of now logs
         let redFreq  = 0.6 * pi -- Try changing the red and blue frequencies.
             red      = sin (now * redFreq)
@@ -60,13 +81,34 @@ main = do
         glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT)
         -- Render our scene
         --putStrLn "getWinSize"
-        V2 w h <- get (SDL.windowSize win)
-        let projection = perspective 45 (fromIntegral w / fromIntegral h) 0.01 1000
+
+        let projection = perspective 45 (w / h) 0.01 1000
             model      = mkTransformation (axisAngle (V3 0 1 1) now) (V3 (sin now) 0 (-4))
             view       = lookAt (V3 0 2 5) (V3 0 0 (-4)) (V3 0 1 0)
-            mvp        = projection !*! view !*! model
+            projView   = projection !*! view
+            mvp        = projView !*! model
 
         --putStrLn "renderCube"
         renderCube cube mvp
+
+        positions <- get
+        forM_ positions $ \cursorPos -> do
+            let V2 x y = cursorPos * 20
+                model = mkTransformation (axisAngle (V3 0 1 1) now) (V3 x y (-20))
+                mvp   = projView !*! model
+            renderCube cube mvp
         --putStrLn "glSwapWindow"
         SDL.glSwapWindow win
+
+
+matchMouse Event
+    { eventPayload =
+        MouseMotionEvent
+          MouseMotionEventData
+            { mouseMotionEventWhich = Mouse 0
+            , mouseMotionEventPos = P pos
+            }
+    }
+    = Just (fromIntegral <$> pos)
+matchMouse _
+    = Nothing

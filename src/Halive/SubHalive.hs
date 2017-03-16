@@ -28,7 +28,9 @@ import StringBuffer
 --import Packages
 import Linker
 
+#if __GLASGOW_HASKELL__ < 800
 import Control.Monad
+#endif
 import Control.Monad.IO.Class
 import Data.IORef
 import Data.Time
@@ -37,7 +39,10 @@ import Halive.FindPackageDBs
 import Control.Concurrent
 import System.Signal
 import Data.Dynamic
-import Paths_halive
+
+import System.Directory
+import System.FilePath
+import Data.Time.Clock.POSIX
 
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
@@ -115,6 +120,8 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
             -- turn off the GHCi sandbox
             -- since it breaks OpenGL/GUI usage
             >>= (pure . (`gopt_unset` Opt_GhciSandbox))
+            -- Allows us to work in dynamic executables
+            -- >>= (pure . (if dynamicGhc then addWay' WayDyn else id))
             -- GHC seems to try to "debounce" compilations within
             -- about a half second (i.e., it won't recompile)
             -- This fixes that, but probably isn't quite what we want
@@ -154,6 +161,14 @@ fileContentsStringToBuffer fileContents = do
     now <- liftIO getCurrentTime
     return (stringToStringBuffer fileContents, now)
 
+createTempFile :: MonadIO m => m FilePath
+createTempFile = liftIO $ do
+    tempDir <- getTemporaryDirectory
+    now <- show . diffTimeToPicoseconds . realToFrac <$> getPOSIXTime
+    let tempFile = tempDir </> "halive_" ++ now <.> "hs"
+    writeFile tempFile ""
+    return tempFile
+
 -- | Takes a filename, optionally its contents, and an expression.
 -- Returns a list of errors or a Dynamic compiled value
 recompileExpressionInFile :: FilePath
@@ -176,9 +191,8 @@ recompileExpressionInFile fileName mFileContents expression =
         target <- case fileName of
             -- We'd like to just use a Module name for the target,
             -- but load/depanal fails with "Foo is a package module"
-            -- As a workaround, we install a blank dummy X.hs file
-            -- and use it as the target.
-            "" -> guessTarget' =<< liftIO (getDataFileName "X.hs")
+            -- We use a blank temp file as a workaround.
+            "" -> guessTarget' =<< createTempFile
             other -> guessTarget' other
 
         logIO "Setting targets..."

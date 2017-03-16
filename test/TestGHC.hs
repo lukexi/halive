@@ -3,9 +3,13 @@ import GHC
 import DynFlags
 import Linker
 import Control.Monad.IO.Class
+import Data.Time.Clock.POSIX
 import Data.Time
 import StringBuffer
 import Data.Dynamic
+import System.Directory
+import System.FilePath
+
 logIO :: MonadIO m => String -> m ()
 logIO = liftIO . putStrLn
 
@@ -15,14 +19,16 @@ withGHC action = defaultErrorHandler defaultFatalMessager defaultFlushOut $ runG
     packageIDs <-
             getSessionDynFlags
         >>= (\d -> pure d
-            { hscTarget   = HscInterpreted
-            , ghcLink     = LinkInMemory
+            { ghcLink     = LinkInMemory
             , ghcMode     = CompManager
+            , hscTarget   = HscAsm
+            , optLevel    = 2
             , verbosity   = 0
             })
         -- turn off the GHCi sandbox
         -- since it breaks OpenGL/GUI usage
         >>= (pure . (`gopt_unset` Opt_GhciSandbox))
+        >>= (pure . (if dynamicGhc then addWay' WayDyn else id))
         -- We must call setSessionDynFlags before calling initPackages or any other GHC API
         >>= setSessionDynFlags
 
@@ -51,9 +57,15 @@ main = withGHC $ do
     fileContents <- fileContentsStringToBuffer ourFile
 
     -- Set the target
-    -- NOTE: we're using "Setup.hs" here to workaround the GHC API
-    -- failing when we try to work without any file at all.
-    target <- guessTarget "Setup.hs" Nothing
+
+    -- Create a dummy temporary file to sate GHC's desires for one,
+    -- even though we're passing it the text as a buffer.
+    tempDir <- liftIO $ getTemporaryDirectory
+    now <- show . diffTimeToPicoseconds . realToFrac <$> liftIO getPOSIXTime
+    let tempFile = tempDir </> "halive_" ++ now <.> "hs"
+    liftIO $ writeFile tempFile ""
+
+    target <- guessTarget tempFile Nothing
 
     logIO "Setting targets..."
     setTargets [target { targetContents = Just fileContents }]
