@@ -51,24 +51,18 @@ main = do
     putStrLn . ("Running under Halive: " ++ ) . show =<< isHaliveActive
 
     -- Reacquire our state from the last run, if any - otherwise create a new state
-    initialState <- reacquire 1 (return ([]::[V2 GLfloat]))
+    initialState <- reacquire 1 (return ([]::[V3 GLfloat]))
     void . flip runStateT initialState . whileWindow win $ \events -> do
         -- Store our state persistently in slot 1
         persistState 1
 
-        winSize@(V2 w h) <- fmap realToFrac <$> SDL.get (SDL.windowSize win)
 
-        forM_ (catMaybes $ map matchMouse events) $ \cursorPos -> do
-            isMouseDown <- SDL.getMouseButtons
-            when (isMouseDown ButtonLeft) $ do
-                let V2 x y = (cursorPos / winSize) * 2 - 1
-                    cursorPosNDC = V2 x (negate y)
-                modify' ((cursorPosNDC :) . take 40)
 
         -- Try turning on a stream of events
         -- unless (null events) $
         --     liftIO $ pPrint events
 
+        winSize@(V2 w h) <- fmap realToFrac <$> SDL.get (SDL.windowSize win)
         now <- realToFrac . utctDayTime <$> liftIO getCurrentTime
         -- print now -- Try turning on a stream of now logs
         let redFreq  = 0.6 * pi -- Try changing the red and blue frequencies.
@@ -91,10 +85,16 @@ main = do
         --putStrLn "renderCube"
         renderCube cube mvp
 
+        -- Accumulate mouse drags as cube trails
+        forM_ (catMaybes $ map matchMouse events) $ \cursorPos -> do
+            isMouseDown <- SDL.getMouseButtons
+            when (isMouseDown ButtonLeft) $ do
+                let worldPos = windowPosToWorldPos winSize projView cursorPos 20
+                modify' ((worldPos :) . take 40)
+
         positions <- get
         forM_ positions $ \cursorPos -> do
-            let V2 x y = cursorPos * 20
-                model = mkTransformation (axisAngle (V3 0 1 1) now) (V3 x y (-20))
+            let model = mkTransformation (axisAngle (V3 0 1 1) now) cursorPos
                 mvp   = projView !*! model
             renderCube cube mvp
         --putStrLn "glSwapWindow"
