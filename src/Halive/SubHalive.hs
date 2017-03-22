@@ -195,19 +195,19 @@ recompileExpressionInFile fileName mFileContents expression =
             "" -> guessTarget' =<< createTempFile
             other -> guessTarget' other
 
-        logIO "Setting targets..."
+        -- logIO "Setting targets..."
         setTargets [target { targetContents = mFileContentsBuffer }]
 
 
 
         -- Reload the main target
-        logIO "Loading..."
+        -- logIO "Loading..."
         loadSuccess <- load LoadAllTargets
 
         if succeeded loadSuccess
             then do
 
-                logIO "Analyzing deps..."
+                -- logIO "Analyzing deps..."
                 -- Get the dependencies of the main target (and update the session with them)
                 graph <- depanal [] False
                 -- -- We must parse and typecheck modules before they'll be available for usage

@@ -61,8 +61,8 @@ startGHC ghcSessionConfig = liftIO $ do
         liftIO $ putMVar initialFileLock ()
         forever $ do
             CompilationRequest{..} <- readTChanIO ghcChan
-            liftIO . putStrLn $ "SubHalive recompiling: "
-                ++ show (crFilePath, crExpressionString)
+            -- liftIO . putStrLn $ "SubHalive recompiling: "
+            --     ++ show (crFilePath, crExpressionString)
 
             result <- recompileExpressionInFile
                 crFilePath crFileContents crExpressionString
