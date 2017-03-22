@@ -10,6 +10,7 @@ import Control.Monad.Trans
 import Control.Monad
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Data.IORef
 
 data CompilationRequest = CompilationRequest
     { crFilePath         :: FilePath
@@ -36,6 +37,8 @@ withGHC ghcSessionConfig action = do
     ghcChan <- startGHC ghcSessionConfig
     action ghcChan
 
+startGHCDefault :: MonadIO m => m (TChan CompilationRequest)
+startGHCDefault = startGHC defaultGHCSessionConfig
 
 startGHC :: MonadIO m => GHCSessionConfig -> m (TChan CompilationRequest)
 startGHC ghcSessionConfig = liftIO $ do
@@ -156,3 +159,17 @@ compileExpression ghcChan code expressionString = do
         , crFileContents     = Just $ Text.unpack code
         }
     return resultTChan
+
+
+liveExpression ghcChan fileName expression defaultVal = do
+    recompiler <- recompilerForExpression ghcChan fileName expression True
+    valueRef <- newIORef defaultVal
+    forkIO . forever $ do
+        result <- atomically (readTChan (recResultTChan recompiler))
+        case result of
+            Left err -> putStrLn err
+            Right maybeVal -> case getCompiledValue maybeVal of
+                Just newVal -> writeIORef valueRef newVal
+                Nothing -> putStrLn ("Got incorrect type for " ++ fileName ++ ":" ++ expression)
+
+    return (readIORef valueRef)
