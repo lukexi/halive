@@ -101,8 +101,7 @@ forkDirectoryListenerThread watchDirectory fileTypes eventChan = do
     stopMVar <- newEmptyMVar
     _ <- forkIO . withManagerConf watchConfig $ \manager -> do
 
-        stop <- watchTree manager watchDirectory predicate $ \e -> do
-            print e
+        stop <- watchTree manager watchDirectory predicate $ \e ->
             writeTChanIO eventChan (Left e)
         () <- takeMVar stopMVar
         stop
@@ -127,7 +126,6 @@ forkFileListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
         let watchDirectory = takeDirectory fileName
 
         stop <- watchTree manager watchDirectory predicate $ \e -> do
-            print e
             mTimeToIgnore <- atomically $ readTVar ignoreEventsNear
             let timeOfEvent = eventTime e
                 shouldIgnore = case mTimeToIgnore of
