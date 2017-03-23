@@ -1,20 +1,21 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE BangPatterns    #-}
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Halive.FileListener where
 
-import Control.Concurrent
-import Control.Concurrent.STM
-import qualified System.FSNotify as FSNotify
-import System.FSNotify hiding (Event)
-import System.Directory
-import System.FilePath
-import Control.Monad.Trans
-import Control.Monad
-import Data.Time
-import Control.Exception
-import Data.IORef
+import           Control.Concurrent
+import           Control.Concurrent.STM
+import           Control.Exception
+import           Control.Monad
+import           Control.Monad.Trans
+import           Data.IORef
+import           Data.List              (isInfixOf)
+import           Data.Time
+import           System.Directory
+import           System.FilePath
+import           System.FSNotify        hiding (Event)
+import qualified System.FSNotify        as FSNotify
 
 type FileEventChan = TChan FSNotify.Event
 
@@ -42,6 +43,13 @@ fileModifiedPredicate :: FilePath -> FSNotify.Event -> Bool
 fileModifiedPredicate fileName event = case event of
     Modified path _ -> path == fileName
     _               -> False
+
+-- Returns True if the event filepath is a common editor file
+isACommonEditorFile :: FSNotify.Event -> Bool
+isACommonEditorFile event = case event of
+    Modified path _ -> any (`isInfixOf` path) emacsFragments
+    _               -> False
+  where emacsFragments = ["#", "flymake", "flycheck"]
 
 eventListenerForFile :: MonadIO m => FilePath -> ShouldReadFile -> m FileEventListener
 eventListenerForFile fileName shouldReadFile = liftIO $ do
@@ -84,7 +92,8 @@ forkDirectoryListenerThread :: FilePath
                             -> TChan (Either FSNotify.Event String)
                             -> IO (MVar ())
 forkDirectoryListenerThread watchDirectory fileTypes eventChan = do
-    let predicate = modifiedWithExtensionPredicate fileTypes
+    let predicate e = modifiedWithExtensionPredicate fileTypes e
+                      && not (isACommonEditorFile e)
 
     -- Configures debounce time for fsnotify
     let watchConfig = defaultConfig
@@ -93,6 +102,7 @@ forkDirectoryListenerThread watchDirectory fileTypes eventChan = do
     _ <- forkIO . withManagerConf watchConfig $ \manager -> do
 
         stop <- watchTree manager watchDirectory predicate $ \e -> do
+            print e
             writeTChanIO eventChan (Left e)
         () <- takeMVar stopMVar
         stop
@@ -104,13 +114,14 @@ forkFileListenerThread :: FilePath
                        -> TVar (Maybe UTCTime)
                        -> IO (MVar ())
 forkFileListenerThread fileName shouldReadFile eventChan ignoreEventsNear = do
-    predicate        <- fileModifiedPredicate <$> canonicalizePath fileName
+    leftPredicate <- fileModifiedPredicate <$> canonicalizePath fileName
+    let predicate e = leftPredicate e && not (isACommonEditorFile e)
     -- If an ignore time is set, ignore file changes for the next 100 ms
-    let ignoreTime = 0.1
-
+        ignoreTime = 0.1
     -- Configures debounce time for fsnotify
-    let watchConfig = defaultConfig
+        watchConfig = defaultConfig
             { confDebounce = Debounce 0.1 }
+
     stopMVar <- newEmptyMVar
     _ <- forkIO . withManagerConf watchConfig $ \manager -> do
         let watchDirectory = takeDirectory fileName
