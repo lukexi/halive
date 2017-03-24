@@ -198,8 +198,6 @@ recompileExpressionInFile fileName mFileContents expression =
         -- logIO "Setting targets..."
         setTargets [target { targetContents = mFileContentsBuffer }]
 
-
-
         -- Reload the main target
         -- logIO "Loading..."
         loadSuccess <- load LoadAllTargets
@@ -210,11 +208,9 @@ recompileExpressionInFile fileName mFileContents expression =
                 -- logIO "Analyzing deps..."
                 -- Get the dependencies of the main target (and update the session with them)
                 graph <- depanal [] False
-                -- -- We must parse and typecheck modules before they'll be available for usage
-                -- forM_ graph (typecheckModule <=< parseModule)
 
                 -- Load the dependencies of the main target
-                setContext $
+                setContext
                     (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
 
                 -- Compile the expression and return the result

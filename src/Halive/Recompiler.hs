@@ -11,6 +11,7 @@ import Control.Monad
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.IORef
+import Data.Typeable
 
 data CompilationRequest = CompilationRequest
     { crFilePath         :: FilePath
@@ -61,43 +62,38 @@ startGHC ghcSessionConfig = liftIO $ do
         liftIO $ putMVar initialFileLock ()
         forever $ do
             CompilationRequest{..} <- readTChanIO ghcChan
-            -- liftIO . putStrLn $ "SubHalive recompiling: "
-            --     ++ show (crFilePath, crExpressionString)
 
             result <- recompileExpressionInFile
                 crFilePath crFileContents crExpressionString
             writeTChanIO crResultTChan result
 
-    () <- liftIO $ takeMVar initialFileLock
+    () <- liftIO (takeMVar initialFileLock)
 
     return ghcChan
 
 
 data Recompiler = Recompiler
-    { recResultTChan :: TChan CompilationResult
+    { recResultTChan       :: TChan CompilationResult
     , recFileEventListener :: FileEventListener
-    , recListenerThread :: ThreadId
+    , recListenerThread    :: ThreadId
     }
 
 recompilerForExpression :: MonadIO m
                         => TChan CompilationRequest
                         -> FilePath
                         -> String
-                        -> Bool
                         -> m Recompiler
-recompilerForExpression ghcChan filePath expressionString compileImmediately =
+recompilerForExpression ghcChan filePath expressionString =
     recompilerWithConfig ghcChan RecompilerConfig
         { rccWatchAll = Nothing
         , rccExpression = expressionString
         , rccFilePath = filePath
-        , rccCompileImmediately = compileImmediately
         }
 
 data RecompilerConfig = RecompilerConfig
     { rccWatchAll :: Maybe (FilePath, [String]) -- if Nothing, just watch given file
     , rccExpression :: String
     , rccFilePath :: FilePath
-    , rccCompileImmediately :: Bool
     }
 
 recompilerWithConfig :: MonadIO m
@@ -113,11 +109,6 @@ recompilerWithConfig ghcChan RecompilerConfig{..} = liftIO $ do
             , crFileContents     = Nothing
             }
 
-
-    -- Compile for the first time immediately
-    when rccCompileImmediately $
-        writeTChanIO ghcChan compilationRequest
-
     -- Recompile on file event notifications
     fileEventListener <- case rccWatchAll of
         Nothing -> eventListenerForFile rccFilePath JustReportEvents
@@ -126,10 +117,13 @@ recompilerWithConfig ghcChan RecompilerConfig{..} = liftIO $ do
         _ <- readFileEvent fileEventListener
         writeTChanIO ghcChan compilationRequest
 
+    -- Compile for the first time immediately
+    writeTChanIO ghcChan compilationRequest
+
     return Recompiler
-        { recResultTChan = resultTChan
+        { recResultTChan       = resultTChan
         , recFileEventListener = fileEventListener
-        , recListenerThread = listenerThread
+        , recListenerThread    = listenerThread
         }
 
 killRecompiler :: MonadIO m => Recompiler -> m ()
@@ -143,7 +137,7 @@ renameRecompilerForExpression :: MonadIO m => Recompiler
                                            -> m Recompiler
 renameRecompilerForExpression recompiler ghcChan filePath expressionString = do
     killRecompiler recompiler
-    recompilerForExpression ghcChan filePath expressionString False
+    recompilerForExpression ghcChan filePath expressionString
 
 compileExpression :: MonadIO m
                   => TChan CompilationRequest
@@ -160,9 +154,18 @@ compileExpression ghcChan code expressionString = do
         }
     return resultTChan
 
-
+-- | liveExpression returns an action to get to the latest version of the expression,
+-- updating it whenever the code changes (unless there is an error).
+-- It also takes a default argument to use until the first compilation completes.
+-- The action is meant to be called before each use of the value.
+liveExpression :: Typeable a
+               => TChan CompilationRequest
+               -> FilePath
+               -> String
+               -> a
+               -> IO (IO a)
 liveExpression ghcChan fileName expression defaultVal = do
-    recompiler <- recompilerForExpression ghcChan fileName expression True
+    recompiler <- recompilerForExpression ghcChan fileName expression
     valueRef <- newIORef defaultVal
     forkIO . forever $ do
         result <- atomically (readTChan (recResultTChan recompiler))

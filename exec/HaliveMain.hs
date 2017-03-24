@@ -51,7 +51,6 @@ startRecompiler mainFileName includeDirs = do
         { rccWatchAll = Just (".", fileTypes)
         , rccExpression = "main"
         , rccFilePath = mainFileName
-        , rccCompileImmediately = True
         }
 
     mainThreadId <- myThreadId

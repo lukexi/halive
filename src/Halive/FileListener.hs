@@ -41,6 +41,7 @@ tryReadTChanIO = atomicallyIO . tryReadTChan
 fileModifiedPredicate :: FilePath -> FSNotify.Event -> Bool
 fileModifiedPredicate fileName event = case event of
     Modified path _ -> path == fileName
+    Added    path _ -> path == fileName
     _               -> False
 
 eventListenerForFile :: MonadIO m => FilePath -> ShouldReadFile -> m FileEventListener
