@@ -14,10 +14,10 @@ import Data.IORef
 import Data.Typeable
 
 data CompilationRequest = CompilationRequest
-    { crFilePath         :: FilePath
+    { crCodeSource       :: CodeSource
     , crExpressionString :: String
     , crResultTChan      :: TChan CompilationResult
-    , crFileContents     :: Maybe String
+    , crFileContents     :: Maybe Text
     -- ^ This is intentionally lazy, since we want to evaluate the string on
     -- the SubHalive thread (as it may be e.g. a TextSeq that needs conversion)
     -- In the future, we may want to pass GHC's StringBuffer type here instead,
@@ -57,14 +57,14 @@ startGHC ghcSessionConfig = liftIO $ do
         -- See SubHalive.hs:GHCSessionConfig
         forM_ (gscStartupFile ghcSessionConfig) $
             \(startupFile, startupExpr) ->
-                recompileExpressionInFile startupFile Nothing startupExpr
+                recompileExpressionInSource (SourceFile startupFile) Nothing startupExpr
 
         liftIO $ putMVar initialFileLock ()
         forever $ do
             CompilationRequest{..} <- readTChanIO ghcChan
 
-            result <- recompileExpressionInFile
-                crFilePath crFileContents crExpressionString
+            result <- recompileExpressionInSource
+                crCodeSource crFileContents crExpressionString
             writeTChanIO crResultTChan result
 
     () <- liftIO (takeMVar initialFileLock)
@@ -78,12 +78,12 @@ data Recompiler = Recompiler
     , recListenerThread    :: ThreadId
     }
 
-recompilerForExpression :: MonadIO m
-                        => TChan CompilationRequest
-                        -> FilePath
-                        -> String
-                        -> m Recompiler
-recompilerForExpression ghcChan filePath expressionString =
+recompilerForFile :: MonadIO m
+                  => TChan CompilationRequest
+                  -> FilePath
+                  -> String
+                  -> m Recompiler
+recompilerForFile ghcChan filePath expressionString =
     recompilerWithConfig ghcChan RecompilerConfig
         { rccWatchAll = Nothing
         , rccExpression = expressionString
@@ -91,9 +91,9 @@ recompilerForExpression ghcChan filePath expressionString =
         }
 
 data RecompilerConfig = RecompilerConfig
-    { rccWatchAll :: Maybe (FilePath, [String]) -- if Nothing, just watch given file
+    { rccWatchAll   :: Maybe (FilePath, [String]) -- if Nothing, just watch given file
     , rccExpression :: String
-    , rccFilePath :: FilePath
+    , rccFilePath   :: FilePath
     }
 
 recompilerWithConfig :: MonadIO m
@@ -103,7 +103,7 @@ recompilerWithConfig :: MonadIO m
 recompilerWithConfig ghcChan RecompilerConfig{..} = liftIO $ do
     resultTChan <- newTChanIO
     let compilationRequest = CompilationRequest
-            { crFilePath         = rccFilePath
+            { crCodeSource       = SourceFile rccFilePath
             , crExpressionString = rccExpression
             , crResultTChan      = resultTChan
             , crFileContents     = Nothing
@@ -137,20 +137,22 @@ renameRecompilerForExpression :: MonadIO m => Recompiler
                                            -> m Recompiler
 renameRecompilerForExpression recompiler ghcChan filePath expressionString = do
     killRecompiler recompiler
-    recompilerForExpression ghcChan filePath expressionString
+    recompilerForFile ghcChan filePath expressionString
 
+-- Compile an anonymous expression.
 compileExpression :: MonadIO m
                   => TChan CompilationRequest
-                  -> Text
-                  -> String
+                  -> String -- ^ A name to assist with error reporting
+                  -> Text   -- ^ The actual code source
+                  -> String -- ^ An expression to pull from the code after compilation
                   -> m (TChan CompilationResult)
-compileExpression ghcChan code expressionString = do
+compileExpression ghcChan name code expressionString = do
     resultTChan <- liftIO newTChanIO
     liftIO $ atomically $ writeTChan ghcChan $ CompilationRequest
-        { crFilePath         = ""
+        { crCodeSource       = SourceCode name
         , crExpressionString = expressionString
         , crResultTChan      = resultTChan
-        , crFileContents     = Just $ Text.unpack code
+        , crFileContents     = Just code
         }
     return resultTChan
 
@@ -165,7 +167,7 @@ liveExpression :: Typeable a
                -> a
                -> IO (IO a)
 liveExpression ghcChan fileName expression defaultVal = do
-    recompiler <- recompilerForExpression ghcChan fileName expression
+    recompiler <- recompilerForFile ghcChan fileName expression
     valueRef <- newIORef defaultVal
     forkIO . forever $ do
         result <- atomically (readTChan (recResultTChan recompiler))

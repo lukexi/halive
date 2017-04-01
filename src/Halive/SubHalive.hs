@@ -40,9 +40,16 @@ import Control.Concurrent
 import System.Signal
 import Data.Dynamic
 
-import System.Directory
 import System.FilePath
-import Data.Time.Clock.POSIX
+
+import qualified Data.Text as Text
+import Data.Text (Text)
+
+
+
+data CodeSource = SourceCode String -- Code that is not from a file. Include a name to assist in error reporting
+                | SourceFile FilePath -- Code from a file.
+
 
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
@@ -156,26 +163,28 @@ newtype CompiledValue = CompiledValue Dynamic deriving Show
 getCompiledValue :: Typeable a => CompiledValue -> Maybe a
 getCompiledValue (CompiledValue r) = fromDynamic r
 
-fileContentsStringToBuffer :: (MonadIO m) => String -> m (StringBuffer, UTCTime)
-fileContentsStringToBuffer fileContents = do
+-- FIXME: this should go directly to StringBuffer using TextStringBuffer.hs
+fileContentsToBuffer :: (MonadIO m) => Text -> m (StringBuffer, UTCTime)
+fileContentsToBuffer fileContents = do
     now <- liftIO getCurrentTime
-    return (stringToStringBuffer fileContents, now)
+    return (stringToStringBuffer (Text.unpack fileContents), now)
 
-createTempFile :: MonadIO m => m FilePath
-createTempFile = liftIO $ do
-    tempDir <- getTemporaryDirectory
-    now <- show . diffTimeToPicoseconds . realToFrac <$> getPOSIXTime
-    let tempFile = tempDir </> "halive_" ++ now <.> "hs"
+createTempFile :: MonadIO m => String -> m FilePath
+createTempFile name = liftIO $ do
+    let tempDir = ".halive" </> "tmp"
+        tempFile = tempDir </> name <.> "hs"
     writeFile tempFile ""
     return tempFile
 
+
+
 -- | Takes a filename, optionally its contents, and an expression.
 -- Returns a list of errors or a Dynamic compiled value
-recompileExpressionInFile :: FilePath
-                          -> Maybe String
-                          -> String
-                          -> Ghc (Either String CompiledValue)
-recompileExpressionInFile fileName mFileContents expression =
+recompileExpressionInSource :: CodeSource
+                            -> Maybe Text
+                            -> String
+                            -> Ghc (Either String CompiledValue)
+recompileExpressionInSource fileName mFileContents expression =
 
     catchExceptions . handleSourceError (fmap Left . gatherErrors) $ do
 
@@ -185,15 +194,15 @@ recompileExpressionInFile fileName mFileContents expression =
             \dflags -> setSessionDynFlags dflags
                 { log_action = logHandler errorsRef }
 
-        mFileContentsBuffer <- mapM fileContentsStringToBuffer mFileContents
+        mFileContentsBuffer <- mapM fileContentsToBuffer mFileContents
 
         -- Set the target
         target <- case fileName of
             -- We'd like to just use a Module name for the target,
             -- but load/depanal fails with "Foo is a package module"
             -- We use a blank temp file as a workaround.
-            "" -> guessTarget' =<< createTempFile
-            other -> guessTarget' other
+            SourceCode codeName -> guessTarget' =<< createTempFile codeName
+            SourceFile codeFile -> guessTarget' codeFile
 
         -- logIO "Setting targets..."
         setTargets [target { targetContents = mFileContentsBuffer }]
@@ -230,7 +239,7 @@ guessTarget' fileName = guessTarget ('*':fileName) Nothing
 catchExceptions :: ExceptionMonad m => m (Either String a) -> m (Either String a)
 catchExceptions a = gcatch a
     (\(_x :: SomeException) -> do
-        liftIO (putStrLn ("Caught exception during recompileExpressionInFile: " ++ show _x))
+        liftIO (putStrLn ("Caught exception during recompileExpressionInSource: " ++ show _x))
         return (Left (show _x))
         )
 
