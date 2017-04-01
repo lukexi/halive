@@ -1,4 +1,7 @@
-{-# LANGUAGE OverloadedStrings, LambdaCase, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE CPP #-}
 module Halive.SubHalive (
@@ -43,6 +46,8 @@ import Data.Dynamic
 import System.Directory
 import System.FilePath
 import Data.Time.Clock.POSIX
+
+import qualified Data.Text as Text
 
 data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
@@ -188,12 +193,14 @@ recompileExpressionInFile fileName mFileContents expression =
         mFileContentsBuffer <- mapM fileContentsStringToBuffer mFileContents
 
         -- Set the target
-        target <- case fileName of
+        (tempFileName, target) <- case fileName of
             -- We'd like to just use a Module name for the target,
             -- but load/depanal fails with "Foo is a package module"
             -- We use a blank temp file as a workaround.
-            "" -> guessTarget' =<< createTempFile
-            other -> guessTarget' other
+            ""    -> do
+                tempFileName <- createTempFile
+                (tempFileName,) <$> guessTarget' tempFileName
+            other -> ("",) <$> guessTarget' other
 
         -- logIO "Setting targets..."
         setTargets [target { targetContents = mFileContentsBuffer }]
@@ -220,7 +227,14 @@ recompileExpressionInFile fileName mFileContents expression =
             else do
                 -- Extract the errors from the accumulator
                 errors <- liftIO (readIORef errorsRef)
-                return (Left errors)
+                -- Strip out the temp file name when using anonymous code
+                let cleanErrors = if null tempFileName then errors
+                        else Text.unpack $
+                            Text.replace
+                            (Text.pack tempFileName)
+                            "<anonymous code>"
+                            (Text.pack errors)
+                return (Left cleanErrors)
 
 -- Prepend a '*' to prevent GHC from trying to load from any previously compiled object files
 -- see http://stackoverflow.com/questions/12790341/haskell-ghc-dynamic-compliation-only-works-on-first-compile
