@@ -7,8 +7,8 @@ main :: IO a
 main = do
     ghc <- startGHC defaultGHCSessionConfig
 
-    fooRecompiler <- recompilerForFile ghc "test/TestFileFoo.hs" "foo"
-    barRecompiler <- recompilerForFile ghc "test/TestFileBar.hs" "bar"
+    fooRecompiler <- recompilerForExpression ghc "test/TestFileFoo.hs" "foo"
+    barRecompiler <- recompilerForExpression ghc "test/TestFileBar.hs" "bar"
 
     forever $ do
         result <- atomically
