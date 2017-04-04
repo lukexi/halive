@@ -62,12 +62,9 @@ updateDynFlagsWithCabalSandbox dflags =
 -- | Get path to the project's snapshot and local package DBs via 'stack path'
 getStackDb :: IO (Maybe [FilePath])
 getStackDb = do
-    exists <- doesFileExist "stack.yaml"
-    if not exists
-        then return Nothing
-        else do
-            pathInfo <- readProcess "stack" ["path"] ""
-            return . Just . catMaybes $ map (flip extractKey pathInfo) ["local-pkg-db:", "snapshot-pkg-db:"]
+    pathInfo <- readProcess "stack" ["path"] "" `catch` (\(_e::IOException) -> return [])
+    return . Just . catMaybes $ map (flip extractKey pathInfo)
+        ["global-pkg-db:", "local-pkg-db:", "snapshot-pkg-db:"]
 
 updateDynFlagsWithStackDB :: MonadIO m => DynFlags -> m DynFlags
 updateDynFlagsWithStackDB dflags =

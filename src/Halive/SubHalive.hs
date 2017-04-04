@@ -127,6 +127,8 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
             >>= (pure . (`gopt_unset` Opt_GhciSandbox))
             -- Allows us to work in dynamic executables
             -- >>= (pure . (if dynamicGhc then addWay' WayDyn else id))
+            -- >>= (pure . (addWay' WayProf))
+            -- >>= (pure . (addWay' WayDyn))
             -- GHC seems to try to "debounce" compilations within
             -- about a half second (i.e., it won't recompile)
             -- This fixes that, but probably isn't quite what we want
