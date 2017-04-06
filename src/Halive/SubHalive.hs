@@ -68,10 +68,16 @@ data GHCSessionConfig = GHCSessionConfig
     , gscCompilationMode    :: CompliationMode
     , gscStartupFile        :: Maybe (FilePath, String)
         -- ^ Allow API users to block until a given file is compiled,
-        -- to work around a bug where the GHC API crashes while loading libraries
-        -- if the main thread is doing work (possibly due to accessing said libraries in some way)
+        -- to work around a bug where the GHC API crashes while
+        -- loading libraries if the main thread is doing work
+        -- (possibly due to accessing said libraries in some way)
     , gscVerbosity          :: Int
     , gscMainThreadID       :: Maybe ThreadId
+    , gscKeepLibsInMemory   :: Bool
+        -- ^ Chooses between keeping the GHC session alive continuously
+        -- (which uses a lot of memory but makes compilation fast)
+        -- or disposing of it between compilations
+        -- (which saves memory but slows compilation)
     }
 
 defaultGHCSessionConfig :: GHCSessionConfig
@@ -86,6 +92,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscStartupFile = Nothing
     , gscVerbosity = 0
     , gscMainThreadID = Nothing
+    , gscKeepLibsInMemory = True
     }
 
 -- Starts up a GHC session and then runs the given action within it

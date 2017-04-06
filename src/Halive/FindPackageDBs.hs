@@ -11,7 +11,6 @@ import System.FilePath
 import System.Process
 import Control.Exception
 import DynFlags
-import GHC
 
 -- | Extract the sandbox package db directory from the cabal.sandbox.config file.
 --   Exception is thrown if the sandbox config file is broken.

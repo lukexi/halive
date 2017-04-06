@@ -3,7 +3,7 @@
 module Halive.Recompiler where
 import Halive.SubHalive
 import Halive.FileListener
-
+import System.Mem
 import Control.Concurrent.STM
 import Control.Concurrent
 import Control.Monad.Trans
@@ -12,7 +12,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.IORef
 import Data.Typeable
-
+import GHC
 data CompilationRequest = CompilationRequest
     { crFilePath         :: FilePath
     , crExpressionString :: String
@@ -51,26 +51,55 @@ startGHC ghcSessionConfig = liftIO $ do
         Nothing -> myThreadId
 
     initialFileLock <- liftIO newEmptyMVar
+    _ <- forkIO . void $ do
 
-    _ <- forkIO . void . withGHCSession mainThreadID ghcSessionConfig $ do
+        if (gscKeepLibsInMemory ghcSessionConfig)
 
-        -- See SubHalive.hs:GHCSessionConfig
-        forM_ (gscStartupFile ghcSessionConfig) $
-            \(startupFile, startupExpr) ->
-                recompileExpressionInFile startupFile Nothing startupExpr
+            -- In this mode we keep the ghc session alive continuously,
+            -- and process all compilation requests in it.
+            -- This trades possibly high memory usage for very fast compilation,
+            -- since libraries don't have to be loaded in repeatedly.
+            then do
 
-        liftIO $ putMVar initialFileLock ()
-        forever $ do
-            CompilationRequest{..} <- readTChanIO ghcChan
+                -- See SubHalive.hs:GHCSessionConfig
+                withGHCSession mainThreadID ghcSessionConfig $ do
+                    compileInitialFile ghcSessionConfig
 
-            result <- recompileExpressionInFile
-                crFilePath crFileContents crExpressionString
-            writeTChanIO crResultTChan result
+                    liftIO $ putMVar initialFileLock ()
+                    forever $ do
+                        CompilationRequest{..} <- readTChanIO ghcChan
 
+                        result <- recompileExpressionInFile
+                            crFilePath crFileContents crExpressionString
+                        writeTChanIO crResultTChan result
+
+            -- In this mode we create a fresh GHC session for each compilation
+            -- request. This trades slower compilations for lower memory usage
+            -- when not compiling.
+            else do
+                withGHCSession mainThreadID ghcSessionConfig $
+                    compileInitialFile ghcSessionConfig
+
+                forever $ do
+                    CompilationRequest{..} <- readTChanIO ghcChan
+
+                    withGHCSession mainThreadID ghcSessionConfig $ do
+                        result <- recompileExpressionInFile
+                            crFilePath crFileContents crExpressionString
+                        writeTChanIO crResultTChan result
+                    liftIO performGC
+
+    -- Wait for the initial file to complete
     () <- liftIO (takeMVar initialFileLock)
+
 
     return ghcChan
 
+compileInitialFile :: GHCSessionConfig -> Ghc ()
+compileInitialFile ghcSessionConfig =
+    forM_ (gscStartupFile ghcSessionConfig) $
+        \(startupFile, startupExpr) ->
+            recompileExpressionInFile startupFile Nothing startupExpr
 
 data Recompiler = Recompiler
     { recResultTChan       :: TChan CompilationResult
@@ -154,6 +183,21 @@ compileExpression ghcChan code expressionString = do
         }
     return resultTChan
 
+compileExpressionInFile :: MonadIO m
+                        => TChan CompilationRequest
+                        -> FilePath
+                        -> String
+                        -> m (TChan CompilationResult)
+compileExpressionInFile ghcChan fileName expressionString = do
+    resultTChan <- liftIO newTChanIO
+    liftIO $ atomically $ writeTChan ghcChan $ CompilationRequest
+        { crFilePath         = fileName
+        , crExpressionString = expressionString
+        , crResultTChan      = resultTChan
+        , crFileContents     = Nothing
+        }
+    return resultTChan
+
 -- | liveExpression returns an action to get to the latest version of the expression,
 -- updating it whenever the code changes (unless there is an error).
 -- It also takes a default argument to use until the first compilation completes.
@@ -167,7 +211,7 @@ liveExpression :: Typeable a
 liveExpression ghcChan fileName expression defaultVal = do
     recompiler <- recompilerForExpression ghcChan fileName expression
     valueRef <- newIORef defaultVal
-    forkIO . forever $ do
+    _ <- forkIO . forever $ do
         result <- atomically (readTChan (recResultTChan recompiler))
         case result of
             Left err -> putStrLn err
