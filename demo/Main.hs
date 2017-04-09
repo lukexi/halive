@@ -35,7 +35,7 @@ main = do
     -- (Our window stays persistent as well thanks to this,
     -- so it would probably be a good idea anyway!)
 
-    (win, _ctx) <- reacquire 0 $ createGLWindow "Hot SDL"
+    (win, _ctx) <- reacquire "win" $ createGLWindow "Hot SDL"
 
     -- You can change the window title here.
     --GLFW.setWindowTitle win "Hot Swap!"
@@ -51,10 +51,10 @@ main = do
     putStrLn . ("Running under Halive: " ++ ) . show =<< isHaliveActive
 
     -- Reacquire our state from the last run, if any - otherwise create a new state
-    initialState <- reacquire 1 (return ([]::[V3 GLfloat]))
+    initialState <- reacquire "state" (return ([]::[V3 GLfloat]))
     void . flip runStateT initialState . whileWindow win $ \events -> do
-        -- Store our state persistently in slot 1
-        persistState 1
+        -- Store our state persistently in a named slot
+        persistState "state"
 
 
 

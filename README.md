@@ -1,8 +1,8 @@
 ```
 ██╗  ██╗ █████╗ ██╗     ██╗██╗   ██╗███████╗
 ██║  ██║██╔══██╗██║     ██║██║   ██║██╔════╝
-███████║███████║██║     ██║██║   ██║█████╗  
-██╔══██║██╔══██║██║     ██║╚██╗ ██╔╝██╔══╝  
+███████║███████║██║     ██║██║   ██║█████╗
+██╔══██║██╔══██║██║     ██║╚██╗ ██╔╝██╔══╝
 ██║  ██║██║  ██║███████╗██║ ╚████╔╝ ███████╗
 ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝  ╚══════╝
 ```
@@ -10,7 +10,7 @@ Live recompiler for Haskell
 
 ![Halive Demo](http://lukexi.github.io/HaliveDemo.gif)
 
-Halive uses the GHC API to instantly recompile 
+Halive uses the GHC API to instantly recompile
 and reload your code any time you change it.
 
 Usage:
@@ -44,15 +44,15 @@ Keeping values alive
 To keep state alive, import `Halive.Utils` and wrap
 your value in `reacquire` along with a unique identifier, like:
 
-`win <- reacquire 0 (setupGLFW "HotGLFW" 640 480)`
+`win <- reacquire "win" (setupGLFW "HotGLFW" 640 480)`
 
 to only create the resource the first time you run the program, and then
 reuse it on subsequent recompilations.
 
 You can see this in action in `demo/Main.hs`.
 
-Thanks to Chris Done's 
-[`foreign-store`](https://hackage.haskell.org/package/foreign-store) 
+Thanks to Chris Done's
+[`foreign-store`](https://hackage.haskell.org/package/foreign-store)
 library for enabling this.
 
 Passing command-line arguments
@@ -67,11 +67,11 @@ such as:
 Notes
 -----
 
-Creating, updating, and deleting modules in the include path should 
-work fine during a Halive session. 
+Creating, updating, and deleting modules in the include path should
+work fine during a Halive session.
 
-Halive supports Stack projects and Cabal sandboxes; 
-if run within a directory containing a stack.yaml or cabal.sandbox.config 
+Halive supports Stack projects and Cabal sandboxes;
+if run within a directory containing a stack.yaml or cabal.sandbox.config
 file it will use the appropriate package databases when running the target.
 
 Halive works nicely with either batch-processing or run-loop type
