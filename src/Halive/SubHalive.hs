@@ -183,13 +183,13 @@ createTempFile = liftIO $ do
     writeFile tempFile ""
     return tempFile
 
--- | Takes a filename, optionally its contents, and an expression.
--- Returns a list of errors or a Dynamic compiled value
-recompileExpressionInFile :: FilePath
-                          -> Maybe String
-                          -> String
-                          -> Ghc (Either String CompiledValue)
-recompileExpressionInFile fileName mFileContents expression =
+-- | Takes a filename, optionally its contents, and a list of expressions.
+-- Returns a list of errors or a list of Dynamic compiled values
+recompileExpressionsInFile :: FilePath
+                           -> Maybe String
+                           -> [String]
+                           -> Ghc (Either String [CompiledValue])
+recompileExpressionsInFile fileName mFileContents expressions =
 
     catchExceptions . handleSourceError (fmap Left . gatherErrors) $ do
 
@@ -229,10 +229,10 @@ recompileExpressionInFile fileName mFileContents expression =
                 setContext
                     (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
 
-                -- Compile the expression and return the result
-                result <- dynCompileExpr expression
+                -- Compile the expressions and return the results
+                results <- mapM dynCompileExpr expressions
 
-                return (Right (CompiledValue result))
+                return (Right (CompiledValue <$> results))
             else do
                 -- Extract the errors from the accumulator
                 errors <- liftIO (readIORef errorsRef)

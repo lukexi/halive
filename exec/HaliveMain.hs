@@ -49,7 +49,7 @@ startRecompiler mainFileName includeDirs = do
 
     recompiler <- recompilerWithConfig ghc RecompilerConfig
         { rccWatchAll = Just (".", fileTypes)
-        , rccExpression = "main"
+        , rccExpressions = ["main"]
         , rccFilePath = mainFileName
         }
 
@@ -63,11 +63,15 @@ startRecompiler mainFileName includeDirs = do
             Left errors -> do
                 printBanner "Compilation Errors, Waiting...     "
                 putStrLn errors
-            Right newCode -> do
+            Right values -> do
                 printBanner "Compilation Success, Relaunching..."
-                atomically $ writeTChan newCodeTChan newCode
-                mainIsRunning <- readIORef isMainRunning
-                when mainIsRunning $ killThread mainThreadId
+                case values of
+                    [newCode] -> do
+                        atomically $ writeTChan newCodeTChan newCode
+                        mainIsRunning <- readIORef isMainRunning
+                        when mainIsRunning $ killThread mainThreadId
+                    _ ->
+                        error "Unexpected number of values received on recResultTChan"
 
     forever $ do
         newCode <- atomically $ readTChan newCodeTChan
@@ -79,4 +83,3 @@ startRecompiler mainFileName includeDirs = do
                 writeIORef isMainRunning False
             Nothing -> do
                 putStrLn "main was not of type IO ()"
-

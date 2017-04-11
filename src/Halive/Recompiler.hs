@@ -14,17 +14,17 @@ import Data.IORef
 import Data.Typeable
 import GHC
 data CompilationRequest = CompilationRequest
-    { crFilePath         :: FilePath
-    , crExpressionString :: String
-    , crResultTChan      :: TChan CompilationResult
-    , crFileContents     :: Maybe String
+    { crFilePath          :: FilePath
+    , crExpressionStrings :: [String]
+    , crResultTChan       :: TChan CompilationResult
+    , crFileContents      :: Maybe String
     -- ^ This is intentionally lazy, since we want to evaluate the string on
     -- the SubHalive thread (as it may be e.g. a TextSeq that needs conversion)
     -- In the future, we may want to pass GHC's StringBuffer type here instead,
     -- and construct those in a smarter way.
     }
 
-type CompilationResult = Either String CompiledValue
+type CompilationResult = Either String [CompiledValue]
 
 -- This is used to implement a workaround for the GHC API crashing
 -- when used after application startup, when it tries to load libraries
@@ -69,8 +69,8 @@ startGHC ghcSessionConfig = liftIO $ do
                     forever $ do
                         CompilationRequest{..} <- readTChanIO ghcChan
 
-                        result <- recompileExpressionInFile
-                            crFilePath crFileContents crExpressionString
+                        result <- recompileExpressionsInFile
+                            crFilePath crFileContents crExpressionStrings
                         writeTChanIO crResultTChan result
 
             -- In this mode we create a fresh GHC session for each compilation
@@ -84,8 +84,8 @@ startGHC ghcSessionConfig = liftIO $ do
                     CompilationRequest{..} <- readTChanIO ghcChan
 
                     withGHCSession mainThreadID ghcSessionConfig $ do
-                        result <- recompileExpressionInFile
-                            crFilePath crFileContents crExpressionString
+                        result <- recompileExpressionsInFile
+                            crFilePath crFileContents crExpressionStrings
                         writeTChanIO crResultTChan result
                     liftIO performGC
 
@@ -99,7 +99,7 @@ compileInitialFile :: GHCSessionConfig -> Ghc ()
 compileInitialFile ghcSessionConfig =
     forM_ (gscStartupFile ghcSessionConfig) $
         \(startupFile, startupExpr) ->
-            recompileExpressionInFile startupFile Nothing startupExpr
+            recompileExpressionsInFile startupFile Nothing [startupExpr]
 
 data Recompiler = Recompiler
     { recResultTChan       :: TChan CompilationResult
@@ -115,13 +115,13 @@ recompilerForExpression :: MonadIO m
 recompilerForExpression ghcChan filePath expressionString =
     recompilerWithConfig ghcChan RecompilerConfig
         { rccWatchAll = Nothing
-        , rccExpression = expressionString
+        , rccExpressions = [expressionString]
         , rccFilePath = filePath
         }
 
 data RecompilerConfig = RecompilerConfig
     { rccWatchAll :: Maybe (FilePath, [String]) -- if Nothing, just watch given file
-    , rccExpression :: String
+    , rccExpressions :: [String]
     , rccFilePath :: FilePath
     }
 
@@ -132,10 +132,10 @@ recompilerWithConfig :: MonadIO m
 recompilerWithConfig ghcChan RecompilerConfig{..} = liftIO $ do
     resultTChan <- newTChanIO
     let compilationRequest = CompilationRequest
-            { crFilePath         = rccFilePath
-            , crExpressionString = rccExpression
-            , crResultTChan      = resultTChan
-            , crFileContents     = Nothing
+            { crFilePath          = rccFilePath
+            , crExpressionStrings = rccExpressions
+            , crResultTChan       = resultTChan
+            , crFileContents      = Nothing
             }
 
     -- Recompile on file event notifications
@@ -168,20 +168,28 @@ renameRecompilerForExpression recompiler ghcChan filePath expressionString = do
     killRecompiler recompiler
     recompilerForExpression ghcChan filePath expressionString
 
+compileExpressions :: MonadIO m
+                   => TChan CompilationRequest
+                   -> Text
+                   -> [String]
+                   -> m (TChan CompilationResult)
+compileExpressions ghcChan code expressionStrings = do
+    resultTChan <- liftIO newTChanIO
+    liftIO $ atomically $ writeTChan ghcChan $ CompilationRequest
+        { crFilePath          = ""
+        , crExpressionStrings = expressionStrings
+        , crResultTChan       = resultTChan
+        , crFileContents      = Just $ Text.unpack code
+        }
+    return resultTChan
+
 compileExpression :: MonadIO m
                   => TChan CompilationRequest
                   -> Text
                   -> String
                   -> m (TChan CompilationResult)
-compileExpression ghcChan code expressionString = do
-    resultTChan <- liftIO newTChanIO
-    liftIO $ atomically $ writeTChan ghcChan $ CompilationRequest
-        { crFilePath         = ""
-        , crExpressionString = expressionString
-        , crResultTChan      = resultTChan
-        , crFileContents     = Just $ Text.unpack code
-        }
-    return resultTChan
+compileExpression ghcChan code expressionString =
+    compileExpressions ghcChan code [expressionString]
 
 compileExpressionInFile :: MonadIO m
                         => TChan CompilationRequest
@@ -191,10 +199,10 @@ compileExpressionInFile :: MonadIO m
 compileExpressionInFile ghcChan fileName expressionString = do
     resultTChan <- liftIO newTChanIO
     liftIO $ atomically $ writeTChan ghcChan $ CompilationRequest
-        { crFilePath         = fileName
-        , crExpressionString = expressionString
-        , crResultTChan      = resultTChan
-        , crFileContents     = Nothing
+        { crFilePath          = fileName
+        , crExpressionStrings = [expressionString]
+        , crResultTChan       = resultTChan
+        , crFileContents      = Nothing
         }
     return resultTChan
 
@@ -214,9 +222,14 @@ liveExpression ghcChan fileName expression defaultVal = do
     _ <- forkIO . forever $ do
         result <- atomically (readTChan (recResultTChan recompiler))
         case result of
-            Left err -> putStrLn err
-            Right maybeVal -> case getCompiledValue maybeVal of
-                Just newVal -> writeIORef valueRef newVal
-                Nothing -> putStrLn ("Got incorrect type for " ++ fileName ++ ":" ++ expression)
+            Left errors -> putStrLn errors
+            Right values ->
+                case values of
+                    [value] ->
+                        case getCompiledValue value of
+                            Just newVal -> writeIORef valueRef newVal
+                            Nothing -> putStrLn ("Got incorrect type for " ++ fileName ++ ":" ++ expression)
+                    _ ->
+                        error "Unexpected number of values received on recResultTChan"
 
     return (readIORef valueRef)
