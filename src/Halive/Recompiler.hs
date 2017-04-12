@@ -80,6 +80,7 @@ startGHC ghcSessionConfig = liftIO $ do
                 withGHCSession mainThreadID ghcSessionConfig $
                     compileInitialFile ghcSessionConfig
 
+                liftIO $ putMVar initialFileLock ()
                 forever $ do
                     CompilationRequest{..} <- readTChanIO ghcChan
 
