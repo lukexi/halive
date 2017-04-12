@@ -53,6 +53,8 @@ data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
 data CompliationMode = Interpreted | Compiled deriving Eq
 
+data KeepLibsInMemory = Always | Never | Opportunistic
+
 data GHCSessionConfig = GHCSessionConfig
     { gscFixDebounce        :: FixDebounce
     , gscImportPaths        :: [FilePath]
@@ -73,11 +75,13 @@ data GHCSessionConfig = GHCSessionConfig
         -- (possibly due to accessing said libraries in some way)
     , gscVerbosity          :: Int
     , gscMainThreadID       :: Maybe ThreadId
-    , gscKeepLibsInMemory   :: Bool
+    , gscKeepLibsInMemory   :: KeepLibsInMemory
         -- ^ Chooses between keeping the GHC session alive continuously
         -- (which uses a lot of memory but makes compilation fast)
         -- or disposing of it between compilations
         -- (which saves memory but slows compilation)
+        -- or keeping it around for sequences of compilations
+        -- (which lies in-between these)
     }
 
 defaultGHCSessionConfig :: GHCSessionConfig
@@ -92,7 +96,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscStartupFile = Nothing
     , gscVerbosity = 0
     , gscMainThreadID = Nothing
-    , gscKeepLibsInMemory = True
+    , gscKeepLibsInMemory = Always
     }
 
 -- Starts up a GHC session and then runs the given action within it

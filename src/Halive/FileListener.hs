@@ -39,6 +39,9 @@ writeTChanIO chan = atomicallyIO . writeTChan chan
 tryReadTChanIO :: MonadIO m => TChan a -> m (Maybe a)
 tryReadTChanIO = atomicallyIO . tryReadTChan
 
+peekTChanIO :: MonadIO m => TChan a -> m a
+peekTChanIO = atomicallyIO . peekTChan
+
 fileModifiedPredicate :: FilePath -> FSNotify.Event -> Bool
 fileModifiedPredicate fileName event = case event of
     Modified path _ -> path == fileName
