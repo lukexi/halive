@@ -53,7 +53,7 @@ data FixDebounce = DebounceFix | NoDebounceFix deriving Eq
 
 data CompliationMode = Interpreted | Compiled deriving Eq
 
-data KeepLibsInMemory = Always | Never | Opportunistic
+data KeepLibsInMemory = Always | Opportunistic
 
 data GHCSessionConfig = GHCSessionConfig
     { gscFixDebounce        :: FixDebounce
@@ -165,7 +165,13 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
         liftIO . initDynLinker =<< getSessionDynFlags
 #endif
 
-        action
+        result <- action
+
+        -- Unload libraries to keep from leaking memory & overloading the GC
+        getSession >>= \hscEnv ->
+            liftIO (unload hscEnv [])
+
+        return result
 
 
 

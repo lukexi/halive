@@ -64,8 +64,8 @@ startGHC ghcSessionConfig = liftIO $ do
                 -- See SubHalive.hs:GHCSessionConfig
                 withGHCSession mainThreadID ghcSessionConfig $ do
                     compileInitialFile ghcSessionConfig
-
                     liftIO $ putMVar initialFileLock ()
+
                     forever $ do
                         CompilationRequest{..} <- readTChanIO ghcChan
 
@@ -73,54 +73,26 @@ startGHC ghcSessionConfig = liftIO $ do
                             crFilePath crFileContents crExpressionStrings
                         writeTChanIO crResultTChan result
 
-            -- In this mode we create a fresh GHC session for each compilation
-            -- request. This trades slower compilations for lower memory usage
+            -- In this mode we create a fresh GHC session for each set of compilation
+            -- requests. This trades slower compilations for lower memory usage
             -- when not compiling.
-            Never -> do
+            Opportunistic -> do
                 withGHCSession mainThreadID ghcSessionConfig $
                     compileInitialFile ghcSessionConfig
-                liftIO performGC
-
                 liftIO $ putMVar initialFileLock ()
+
                 forever $ do
-                    CompilationRequest{..} <- readTChanIO ghcChan
+                    requests <- waitExhaustTChanIO ghcChan
 
-                    withGHCSession mainThreadID ghcSessionConfig $ do
-                        result <- recompileExpressionsInFile
-                            crFilePath crFileContents crExpressionStrings
-                        writeTChanIO crResultTChan result
-                    liftIO performGC
-
-            -- In this mode we create a fresh GHC session for each sequence of
-            -- uninterrupted compilation requests. This is probably preferable
-            -- to Never.
-            Opportunistic -> do
-                let handleSequenceOfRequests = do
-                        maybeRequest <- tryReadTChanIO ghcChan
-                        case maybeRequest of
-                            Nothing -> return ()
-                            Just CompilationRequest{..} -> do
-                                result <- recompileExpressionsInFile
-                                    crFilePath crFileContents crExpressionStrings
-                                writeTChanIO crResultTChan result
-                                handleSequenceOfRequests
-
-                withGHCSession mainThreadID ghcSessionConfig $ do
-                    compileInitialFile ghcSessionConfig
-                    handleSequenceOfRequests
-                liftIO performGC
-
-                liftIO $ putMVar initialFileLock ()
-                forever $ do
-                    _ <- peekTChanIO ghcChan  -- block until we get a request
-
-                    withGHCSession mainThreadID ghcSessionConfig $ do
-                        handleSequenceOfRequests
+                    withGHCSession mainThreadID ghcSessionConfig $
+                        forM_ requests $ \CompilationRequest{..} -> do
+                            result <- recompileExpressionsInFile
+                                crFilePath crFileContents crExpressionStrings
+                            writeTChanIO crResultTChan result
                     liftIO performGC
 
     -- Wait for the initial file to complete
     () <- liftIO (takeMVar initialFileLock)
-
 
     return ghcChan
 

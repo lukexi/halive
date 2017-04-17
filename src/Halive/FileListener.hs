@@ -42,6 +42,26 @@ tryReadTChanIO = atomicallyIO . tryReadTChan
 peekTChanIO :: MonadIO m => TChan a -> m a
 peekTChanIO = atomicallyIO . peekTChan
 
+exhaustTChan :: TChan a -> STM [a]
+exhaustTChan chan = unfoldM (tryReadTChan chan)
+
+exhaustTChanIO :: MonadIO m => TChan a -> m [a]
+exhaustTChanIO = atomicallyIO . exhaustTChan
+
+-- A version of exhaustTChan that blocks until there is something to read
+waitExhaustTChan :: TChan a -> STM [a]
+waitExhaustTChan chan = peekTChan chan >> exhaustTChan chan
+
+waitExhaustTChanIO :: MonadIO m => TChan a -> m [a]
+waitExhaustTChanIO = atomicallyIO . waitExhaustTChan
+
+-- | Take a monadic stream returning Maybes and
+-- pull a list from it until it returns Nothing
+unfoldM :: Monad m => m (Maybe a) -> m [a]
+unfoldM f = f >>= \case
+    Just a  -> (a:) <$> unfoldM f
+    Nothing -> return []
+
 fileModifiedPredicate :: FilePath -> FSNotify.Event -> Bool
 fileModifiedPredicate fileName event = case event of
     Modified path _ -> path == fileName
