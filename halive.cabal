@@ -71,12 +71,12 @@ executable halive
   -- This strangely enables "-dynamic" for all dependent libraries,
   -- so I need to comment this during profiling?!?
   -- Shouldn't ghc-prof-options override it anyway? Who knows.
-  if !os(windows)
-    ghc-options:         -dynamic
+  -- if !os(windows)
+    -- ghc-options:         -dynamic
     -- This overrides -dynamic when building for profiling,
     -- probably breaking the executable but at least it lets us build
     -- halive as a dependency.
-    ghc-prof-options:    -static
+    -- ghc-prof-options:    -static
   -- ^ Required on Mac due to https://ghc.haskell.org/trac/ghc/ticket/9278
   -- (does GHCi use this??)
   other-modules:

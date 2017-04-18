@@ -28,7 +28,7 @@ import GHC.Paths
 import Outputable
 import StringBuffer
 
---import Packages
+-- import Packages
 import Linker
 
 #if __GLASGOW_HASKELL__ < 800
@@ -111,6 +111,11 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
     -- defaultErrorHandler defaultFatalMessager defaultFlushOut $ runGhc (Just libdir) $ do
     runGhc (Just gscLibDir) . restoreControlC $ do
 
+        -- initialFlags <- getSessionDynFlags
+        -- (newFlags, leftovers, warnings) <- parseDynamicFlagsCmdLine initialFlags [noLoc "-prof"]
+        -- setSessionDynFlags newFlags
+        -- liftIO $ print (compilerInfo newFlags)
+
         packageIDs <-
                 getSessionDynFlags
             >>= updateDynFlagsWithGlobalDB
@@ -139,6 +144,7 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
             -- Allows us to work in dynamic executables
             -- >>= (pure . (if dynamicGhc then addWay' WayDyn else id))
             -- >>= (pure . (addWay' WayProf))
+            -- >>= (pure . (if rtsIsProfiled then addWay' WayProf else id))
             -- >>= (pure . (addWay' WayDyn))
             -- GHC seems to try to "debounce" compilations within
             -- about a half second (i.e., it won't recompile)
@@ -152,10 +158,12 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
             -- We must call setSessionDynFlags before calling initPackages or any other GHC API
             >>= setSessionDynFlags
 
-
         -- Initialize the package database and dynamic linker.
         -- Explicitly calling these avoids crashes on some of my machines.
 #if __GLASGOW_HASKELL__ >= 800
+        -- (dflags,_pkgs) <- liftIO . initPackages =<< getSessionDynFlags
+        -- setSessionDynFlags dflags
+
         getSession >>= \hscEnv ->
             liftIO $ linkPackages hscEnv packageIDs
         liftIO . initDynLinker =<< getSession
