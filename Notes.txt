@@ -25,7 +25,7 @@ TODO:
 
         [ ] Watch all included path trees rather than the current directory.
 
-[ ] Configurable watched filetypes, either with a dotfile or flags
+[ ] Create a dotfile for configuration (as an alternative to command line arguments)
 
 [ ] Bug: halive crashes if multiple files are saved/added at once
 
@@ -73,6 +73,8 @@ DONE
     Once we've got this, we should be able to live edit Halive's source with Halive which should
     be a fun demo.
     (done thanks to Jonathan Geddes @jargv !)
+
+[x] Configurable watched filetypes (with flags)
 
 NOTES:
 

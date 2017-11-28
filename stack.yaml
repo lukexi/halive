@@ -2,3 +2,6 @@ flags: {}
 packages:
 - '.'
 resolver: lts-8.2
+
+extra-deps:
+- gl-0.8.0

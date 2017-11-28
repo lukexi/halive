@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards #-}
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
@@ -14,38 +15,35 @@ import Data.IORef
 import Control.Concurrent.STM
 import Halive.SubHalive
 import Halive.Recompiler
+import Halive.Args
 import System.FilePath
-
-
-separateArgs :: [String] -> ([String], [String])
-separateArgs args = (haliveArgs, drop 1 targetArgs)
-    where (haliveArgs, targetArgs) = break (== "--") args
-
+    
 main :: IO ()
 main = do
-    (args, targetArgs) <- separateArgs <$> getArgs
+    args <- parseArgs <$> getArgs
     case args of
-        [] -> putStrLn "Usage: halive <main.hs> <include dir> [-- <args to myapp>]"
-        (mainFileName:includeDirs) -> do
+        Nothing -> putStrLn usage
+        Just Args {..} -> do
             let mainFilePath = dropFileName mainFileName
             setEnv "Halive Active" "Yes"
             putStrLn banner
-            withArgs targetArgs $ startRecompiler mainFileName (mainFilePath:includeDirs)
+            withArgs targetArgs $ startRecompiler (fileTypes ++ defaultFileTypes) mainFileName (mainFilePath:includeDirs)
+
+defaultFileTypes :: [FileType]
+defaultFileTypes = ["hs", "pd", "frag", "vert"]
 
 printBanner :: String -> IO ()
 printBanner title = putStrLn $ ribbon ++ " " ++ title ++ " " ++ ribbon
     where ribbon = replicate 25 '*'
 
-startRecompiler :: FilePath -> [FilePath] -> IO b
-startRecompiler mainFileName includeDirs = do
+startRecompiler :: [FileType] -> FilePath -> [FilePath] -> IO b
+startRecompiler fileTypes mainFileName includeDirs = do
     ghc <- startGHC
         (defaultGHCSessionConfig
             { gscImportPaths = includeDirs
             -- , gscCompilationMode = Compiled
             , gscCompilationMode = Interpreted
             })
-
-    let fileTypes = ["hs", "pd", "frag", "vert"]
 
     recompiler <- recompilerWithConfig ghc RecompilerConfig
         { rccWatchAll = Just (".", fileTypes)
