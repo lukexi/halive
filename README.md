@@ -55,6 +55,15 @@ Thanks to Chris Done's
 [`foreign-store`](https://hackage.haskell.org/package/foreign-store)
 library for enabling this.
 
+Watch custom file types for changes
+-----------------------------------
+
+By default, Halive will reload your code when files with the following extensions change: `hs`, `pd`, `frag`, `vert`.
+
+If you have any other file type that you'd like to be watched by Halive, use the `-f`/`--file-type` option.
+
+`halive app/Main.hs -f html -f hamlet`
+
 Passing command-line arguments
 ------------------------------
 

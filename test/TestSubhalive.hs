@@ -17,8 +17,9 @@ main = do
              readTChan (recResultTChan barRecompiler))
         case result of
             Left errors -> putStrLn errors
-            Right value -> case getCompiledValue value of
-                Just value -> do
-                    putStrLn value
-                Nothing -> do
-                    putStrLn "Error: foo or bar was not of type String"
+            Right values -> forM_ values $ \value ->
+                case getCompiledValue value of
+                    Just v ->
+                        putStrLn v
+                    Nothing ->
+                        putStrLn "Error: foo or bar was not of type String"
