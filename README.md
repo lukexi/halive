@@ -1,8 +1,8 @@
 ```
 ██╗  ██╗ █████╗ ██╗     ██╗██╗   ██╗███████╗
 ██║  ██║██╔══██╗██║     ██║██║   ██║██╔════╝
-███████║███████║██║     ██║██║   ██║█████╗  
-██╔══██║██╔══██║██║     ██║╚██╗ ██╔╝██╔══╝  
+███████║███████║██║     ██║██║   ██║█████╗
+██╔══██║██╔══██║██║     ██║╚██╗ ██╔╝██╔══╝
 ██║  ██║██║  ██║███████╗██║ ╚████╔╝ ███████╗
 ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝  ╚══════╝
 ```
@@ -10,7 +10,7 @@ Live recompiler for Haskell
 
 ![Halive Demo](http://lukexi.github.io/HaliveDemo.gif)
 
-Halive uses the GHC API to instantly recompile 
+Halive uses the GHC API to instantly recompile
 and reload your code any time you change it.
 
 Usage:
@@ -44,16 +44,25 @@ Keeping values alive
 To keep state alive, import `Halive.Utils` and wrap
 your value in `reacquire` along with a unique identifier, like:
 
-`win <- reacquire 0 (setupGLFW "HotGLFW" 640 480)`
+`win <- reacquire "win" (setupGLFW "HotGLFW" 640 480)`
 
 to only create the resource the first time you run the program, and then
 reuse it on subsequent recompilations.
 
 You can see this in action in `demo/Main.hs`.
 
-Thanks to Chris Done's 
-[`foreign-store`](https://hackage.haskell.org/package/foreign-store) 
+Thanks to Chris Done's
+[`foreign-store`](https://hackage.haskell.org/package/foreign-store)
 library for enabling this.
+
+Watch custom file types for changes
+-----------------------------------
+
+By default, Halive will reload your code when files with the following extensions change: `hs`, `pd`, `frag`, `vert`.
+
+If you have any other file type that you'd like to be watched by Halive, use the `-f`/`--file-type` option.
+
+`halive app/Main.hs -f html -f hamlet`
 
 Passing command-line arguments
 ------------------------------
@@ -67,11 +76,11 @@ such as:
 Notes
 -----
 
-Creating, updating, and deleting modules in the include path should 
-work fine during a Halive session. 
+Creating, updating, and deleting modules in the include path should
+work fine during a Halive session.
 
-Halive supports Stack projects and Cabal sandboxes; 
-if run within a directory containing a stack.yaml or cabal.sandbox.config 
+Halive supports Stack projects and Cabal sandboxes;
+if run within a directory containing a stack.yaml or cabal.sandbox.config
 file it will use the appropriate package databases when running the target.
 
 Halive works nicely with either batch-processing or run-loop type
@@ -81,7 +90,12 @@ and if it's still running, it will be killed and restarted on save.
 To kill Halive during run-loop type programs, you may need to hold down Ctrl-C
 to get GHC to recognize the double-Control-C-kill sequence.
 
-Halive should work on Windows and Mac, and probably Linux too (untested, please let me know if it doesn't!)
+Halive works on Windows, Mac, and Linux
+
+As a Library
+------------
+Halive can also be integrated into your own project as a library in a few lines of code. See `test/TestSubHalive.hs` for an example.
+IMPORTANT: You must link your binary with `ghc-options: -dynamic` for this to work! Otherwise you'll get mysterious linking errors on Mac and Linux.
 
 Troubleshooting
 ---------------

@@ -39,7 +39,7 @@ uniformM44 uniform matrix = do
 
 createShaderProgram :: FilePath -> FilePath -> IO GLProgram
 createShaderProgram vertexShaderPath fragmentShaderPath =
-   
+
     do vertexShader <- glCreateShader GL_VERTEX_SHADER
        compileShader vertexShaderPath vertexShader
        fragmentShader <- glCreateShader GL_FRAGMENT_SHADER
@@ -49,7 +49,7 @@ createShaderProgram vertexShaderPath fragmentShaderPath =
        glAttachShader shaderProg fragmentShader
        glLinkProgram shaderProg
        linked <- overPtr (glGetProgramiv shaderProg GL_LINK_STATUS)
-       when (linked == GL_FALSE)
+       when (linked == fromIntegral GL_FALSE)
             (do maxLength <- overPtr (glGetProgramiv shaderProg GL_INFO_LOG_LENGTH)
                 logLines <- allocaArray
                               (fromIntegral maxLength)
@@ -86,16 +86,16 @@ createShaderProgram vertexShaderPath fragmentShaderPath =
 
 getShaderAttribute :: GLProgram -> String -> IO AttributeLocation
 getShaderAttribute (GLProgram prog) attributeName = do
-    location <- withCString attributeName $ \attributeNameCString -> 
+    location <- withCString attributeName $ \attributeNameCString ->
         glGetAttribLocation prog attributeNameCString
-    when (location == -1) $ error $ "Coudn't bind attribute: " ++ attributeName 
+    when (location == -1) $ error $ "Coudn't bind attribute: " ++ attributeName
     return (AttributeLocation location)
 
 getShaderUniform :: GLProgram -> String -> IO UniformLocation
 getShaderUniform (GLProgram prog) uniformName = do
-    location <- withCString uniformName $ \uniformNameCString -> 
+    location <- withCString uniformName $ \uniformNameCString ->
         glGetUniformLocation prog uniformNameCString
-    when (location == -1) $ error $ "Coudn't bind uniform: " ++ uniformName 
+    when (location == -1) $ error $ "Coudn't bind uniform: " ++ uniformName
     return (UniformLocation location)
 
 glGetErrors :: IO ()

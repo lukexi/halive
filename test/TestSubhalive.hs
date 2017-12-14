@@ -7,8 +7,8 @@ main :: IO a
 main = do
     ghc <- startGHC defaultGHCSessionConfig
 
-    fooRecompiler <- recompilerForExpression ghc "test/TestFileFoo.hs" "foo" True
-    barRecompiler <- recompilerForExpression ghc "test/TestFileBar.hs" "bar" True
+    fooRecompiler <- recompilerForExpression ghc "test/TestFileFoo.hs" "foo"
+    barRecompiler <- recompilerForExpression ghc "test/TestFileBar.hs" "bar"
 
     forever $ do
         result <- atomically
@@ -16,9 +16,10 @@ main = do
             `orElse`
              readTChan (recResultTChan barRecompiler))
         case result of
-            Left errors -> putStrLn (concat errors)
-            Right value -> case getCompiledValue value of
-                Just value -> do
-                    putStrLn value
-                Nothing -> do
-                    putStrLn "Error: foo or bar was not of type String"
+            Left errors -> putStrLn errors
+            Right values -> forM_ values $ \value ->
+                case getCompiledValue value of
+                    Just v ->
+                        putStrLn v
+                    Nothing ->
+                        putStrLn "Error: foo or bar was not of type String"

@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards #-}
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
@@ -14,30 +15,29 @@ import Data.IORef
 import Control.Concurrent.STM
 import Halive.SubHalive
 import Halive.Recompiler
+import Halive.Args
 import System.FilePath
-
-
-separateArgs :: [String] -> ([String], [String])
-separateArgs args = (haliveArgs, drop 1 targetArgs)
-    where (haliveArgs, targetArgs) = break (== "--") args
-
+    
 main :: IO ()
 main = do
-    (args, targetArgs) <- separateArgs <$> getArgs
+    args <- parseArgs <$> getArgs
     case args of
-        [] -> putStrLn "Usage: halive <main.hs> <include dir> [-- <args to myapp>]"
-        (mainFileName:includeDirs) -> do
+        Nothing -> putStrLn usage
+        Just Args {..} -> do
             let mainFilePath = dropFileName mainFileName
             setEnv "Halive Active" "Yes"
             putStrLn banner
-            withArgs targetArgs $ startRecompiler mainFileName (mainFilePath:includeDirs)
+            withArgs targetArgs $ startRecompiler (fileTypes ++ defaultFileTypes) mainFileName (mainFilePath:includeDirs)
+
+defaultFileTypes :: [FileType]
+defaultFileTypes = ["hs", "pd", "frag", "vert"]
 
 printBanner :: String -> IO ()
 printBanner title = putStrLn $ ribbon ++ " " ++ title ++ " " ++ ribbon
     where ribbon = replicate 25 '*'
 
-startRecompiler :: FilePath -> [FilePath] -> IO b
-startRecompiler mainFileName includeDirs = do
+startRecompiler :: [FileType] -> FilePath -> [FilePath] -> IO b
+startRecompiler fileTypes mainFileName includeDirs = do
     ghc <- startGHC
         (defaultGHCSessionConfig
             { gscImportPaths = includeDirs
@@ -45,13 +45,10 @@ startRecompiler mainFileName includeDirs = do
             , gscCompilationMode = Interpreted
             })
 
-    let fileTypes = ["hs", "pd", "frag", "vert"]
-
     recompiler <- recompilerWithConfig ghc RecompilerConfig
         { rccWatchAll = Just (".", fileTypes)
-        , rccExpression = "main"
+        , rccExpressions = ["main"]
         , rccFilePath = mainFileName
-        , rccCompileImmediately = True
         }
 
     mainThreadId <- myThreadId
@@ -63,12 +60,16 @@ startRecompiler mainFileName includeDirs = do
         case result of
             Left errors -> do
                 printBanner "Compilation Errors, Waiting...     "
-                putStrLn (concat errors)
-            Right newCode -> do
+                putStrLn errors
+            Right values -> do
                 printBanner "Compilation Success, Relaunching..."
-                atomically $ writeTChan newCodeTChan newCode
-                mainIsRunning <- readIORef isMainRunning
-                when mainIsRunning $ killThread mainThreadId
+                case values of
+                    [newCode] -> do
+                        atomically $ writeTChan newCodeTChan newCode
+                        mainIsRunning <- readIORef isMainRunning
+                        when mainIsRunning $ killThread mainThreadId
+                    _ ->
+                        error "Unexpected number of values received on recResultTChan"
 
     forever $ do
         newCode <- atomically $ readTChan newCodeTChan
@@ -80,4 +81,3 @@ startRecompiler mainFileName includeDirs = do
                 writeIORef isMainRunning False
             Nothing -> do
                 putStrLn "main was not of type IO ()"
-

@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                halive
-version:             0.1.2
+version:             0.1.4
 synopsis:            A live recompiler
 description:
   Live recompiler for Haskell
@@ -11,7 +11,11 @@ description:
   .
   /Usage:/
   .
-  > halive path/to/myfile.hs [optionally any/extra include/dirs ..] -- [args to app]
+  > halive path/to/myfile.hs [optionally any/extra include/dirs ..] [-f|--file-type additional file type] -- [args to app]
+  .
+  Available options:
+  .
+  @-f, --file-type <file type>@ - Custom file type to watch for changes (e.g. @-f html@)
   .
   See <https://github.com/lukexi/halive/blob/master/README.md README>
 homepage:            https://github.com/lukexi/halive
@@ -32,6 +36,8 @@ source-repository head
 library
   hs-source-dirs:      src
   exposed-modules:
+    Halive
+    Halive.Args
     Halive.Utils
     Halive.Concurrent
     Halive.FindPackageDBs
@@ -42,20 +48,21 @@ library
   ghc-prof-options:    -Wall -O2 -fprof-auto
   ghc-options:         -Wall -O2
   build-depends:
-    base>=4.7 && <5,
-    foreign-store,
-    containers,
-    mtl,
-    ghc,
-    ghc-paths,
-    filepath,
-    fsnotify,
-    process,
-    transformers,
-    directory,
-    stm,
-    time,
-    signal
+      base >=4.7 && <5
+    , foreign-store
+    , containers
+    , mtl
+    , ghc
+    , ghc-paths
+    , filepath
+    , fsnotify
+    , process
+    , transformers
+    , directory
+    , stm
+    , time
+    , signal
+    , text
   if impl(ghc >= 8)
     build-depends:
       ghc-boot
@@ -69,24 +76,41 @@ executable halive
   -- This strangely enables "-dynamic" for all dependent libraries,
   -- so I need to comment this during profiling?!?
   -- Shouldn't ghc-prof-options override it anyway? Who knows.
-  if !os(windows)
-    ghc-options:         -dynamic
+  -- if !os(windows)
+    -- ghc-options:         -dynamic
+    -- This overrides -dynamic when building for profiling,
+    -- probably breaking the executable but at least it lets us build
+    -- halive as a dependency.
+    -- ghc-prof-options:    -static
   -- ^ Required on Mac due to https://ghc.haskell.org/trac/ghc/ticket/9278
   -- (does GHCi use this??)
   other-modules:
     Banner
   -- other-extensions:
   build-depends:
-    base,
-    ghc,
-    ghc-paths,
-    transformers,
-    directory,
-    filepath,
-    fsnotify,
-    process,
-    stm,
-    halive
+      base
+    , ghc
+    , ghc-paths
+    , transformers
+    , directory
+    , filepath
+    , fsnotify
+    , process
+    , stm
+    , halive
+
+
+test-suite unit
+  type: exitcode-stdio-1.0
+  default-language: Haskell2010
+  main-is: Spec.hs
+  hs-source-dirs: test/unit
+  other-modules:
+      Halive.ArgsSpec
+  build-depends:
+      base
+    , halive
+    , hspec
 
 test-suite demo
   type: exitcode-stdio-1.0
@@ -109,13 +133,15 @@ test-suite demo
     text,
     bytestring,
     mtl,
-    time
+    time,
+    lens,
+    pretty-show
 
 test-suite subhalive
   type:                exitcode-stdio-1.0
   main-is:             TestSubhalive.hs
   hs-source-dirs:      test
-  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N -dynamic
   build-depends:       base
                      , halive
                      , mtl
@@ -125,3 +151,33 @@ test-suite subhalive
                      , filepath
                      , stm
   default-language:    Haskell2010
+
+test-suite compileexpr
+  type:                exitcode-stdio-1.0
+  main-is:             TestCompileExpr.hs
+  hs-source-dirs:      test
+  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N  -dynamic
+  build-depends:       base
+                     , halive
+                     , mtl
+                     , random
+                     , containers
+                     , time
+                     , filepath
+                     , stm
+  default-language:    Haskell2010
+
+
+test-suite testghc
+  type:                exitcode-stdio-1.0
+  main-is:             TestGHC.hs
+  hs-source-dirs:      test
+  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , time
+                     , filepath
+                     , ghc
+                     , ghc-paths
+                     , directory
+  default-language:    Haskell2010
+

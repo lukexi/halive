@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Halive.FindPackageDBs where
 import Data.Maybe
 
@@ -8,9 +9,8 @@ import Data.List
 import System.Directory
 import System.FilePath
 import System.Process
-
+import Control.Exception
 import DynFlags
-import GHC
 
 -- | Extract the sandbox package db directory from the cabal.sandbox.config file.
 --   Exception is thrown if the sandbox config file is broken.
@@ -27,8 +27,8 @@ mightExist f = do
     exists <- doesFileExist f
     return $ if exists then (Just f) else (Nothing)
 
-addExtraPkgConfs :: DynFlags -> [FilePath] -> DynFlags
-addExtraPkgConfs dflags pkgConfs = dflags
+addExtraPkgConfs :: [FilePath] -> DynFlags -> DynFlags
+addExtraPkgConfs pkgConfs dflags = dflags
     { extraPkgConfs =
         let newPkgConfs = map PkgConfFile pkgConfs
         in (newPkgConfs ++) . extraPkgConfs dflags
@@ -61,12 +61,9 @@ updateDynFlagsWithCabalSandbox dflags =
 -- | Get path to the project's snapshot and local package DBs via 'stack path'
 getStackDb :: IO (Maybe [FilePath])
 getStackDb = do
-    exists <- doesFileExist "stack.yaml"
-    if not exists
-        then return Nothing
-        else do
-            pathInfo <- readProcess "stack" ["path"] ""
-            return . Just . catMaybes $ map (flip extractKey pathInfo) ["local-pkg-db:", "snapshot-pkg-db:"]
+    pathInfo <- readProcess "stack" ["path"] "" `catch` (\(_e::IOException) -> return [])
+    return . Just . catMaybes $ map (flip extractKey pathInfo)
+        ["global-pkg-db:", "local-pkg-db:", "snapshot-pkg-db:"]
 
 updateDynFlagsWithStackDB :: MonadIO m => DynFlags -> m DynFlags
 updateDynFlagsWithStackDB dflags =
@@ -79,6 +76,7 @@ updateDynFlagsWithStackDB dflags =
 updateDynFlagsWithGlobalDB :: MonadIO m => DynFlags -> m DynFlags
 updateDynFlagsWithGlobalDB dflags = do
     xs <- liftIO $ lines <$> readProcess "ghc" ["--print-global-package-db"] ""
+        `catch` (\(_e :: SomeException) -> return [])
     case xs of
         [pkgconf] -> return dflags { extraPkgConfs = (PkgConfFile pkgconf :) . extraPkgConfs dflags }
         _ -> return dflags

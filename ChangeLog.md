@@ -1,4 +1,14 @@
 # Revision history for halive
+## 0.1.4.  -- 2017-03-23
+* Remove extraneous argument from compileExpression
+* Fix change detection for editors that delete and recreate files rather than modifying them
+* Ignores emacs flycheck/flymake and before-save files (Schell Scivally)
+* Add ability to pass just file contents rather than an actual file
+* Add ability to turn off language features (e.g. NoImplicitPrelude)
+* Add liveExpression
+
+## 0.1.3.  -- 2017-02-24
+* Allows Halive to be used in a nix environment (Jude Taylor)
 
 ## 0.1.2.  -- 2017-01-02
 * Restores ability for Halive to watch surrounding files in a dir
