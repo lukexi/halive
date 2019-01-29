@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 import GHC.Paths
 import GHC
 import DynFlags
@@ -87,12 +88,15 @@ main = withGHC $ do
             -- -- We must parse and typecheck modules before they'll be available for usage
             -- forM_ graph (typecheckModule <=< parseModule)
 
+            #if __GLASGOW_HASKELL__ >= 804
+            let modSummaries = mgModSummaries graph
+            #else
+            let modSummaries = graph
+            #endif
+
             -- Load the dependencies of the main target
-            setContext $
-                (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
-                -- [IIDecl
-                --  . simpleImportDecl
-                --  . mkModuleName $ "Main"]
+            setContext
+                (IIDecl . simpleImportDecl . ms_mod_name <$> modSummaries)
 
             -- Compile the expression and return the result
             result <- dynCompileExpr expression

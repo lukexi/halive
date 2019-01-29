@@ -2,6 +2,7 @@
 import Control.Concurrent.STM
 import Halive
 
+main :: IO ()
 main = do
 
     ghc <- startGHC defaultGHCSessionConfig

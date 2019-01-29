@@ -30,7 +30,7 @@ Try a live-coding GL demo by running:
 ```
 # Grab the demo package and install the demo's dependencies - only need to do this once
 stack unpack halive
-cd halive-0.1.0.8
+cd halive-0.1.5
 stack build --test --no-run-tests
 
 # Now run Halive

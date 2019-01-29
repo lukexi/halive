@@ -243,9 +243,15 @@ recompileExpressionsInFile fileName mFileContents expressions =
                 -- Get the dependencies of the main target (and update the session with them)
                 graph <- depanal [] False
 
+                #if __GLASGOW_HASKELL__ >= 804
+                let modSummaries = mgModSummaries graph
+                #else
+                let modSummaries = graph
+                #endif
+
                 -- Load the dependencies of the main target
                 setContext
-                    (IIDecl . simpleImportDecl . ms_mod_name <$> graph)
+                    (IIDecl . simpleImportDecl . ms_mod_name <$> modSummaries)
 
                 -- Compile the expressions and return the results
                 results <- mapM dynCompileExpr expressions

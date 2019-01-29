@@ -1,4 +1,8 @@
 # Revision history for halive
+## 0.1.5.  -- 2019-01-28
+* Updates for GHC 8.6
+* Updates for GHC 8.2 (Schell Scivally)
+
 ## 0.1.4.  -- 2017-03-23
 * Remove extraneous argument from compileExpression
 * Fix change detection for editors that delete and recreate files rather than modifying them

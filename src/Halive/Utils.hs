@@ -55,6 +55,7 @@ getStoreMap = do
             writeStoreMap storeMap
             return storeMap
 
+modifyStoreMap :: MonadIO m => (StoreMap -> StoreMap) -> m ()
 modifyStoreMap f = do
     storeMap <- getStoreMap
     writeStoreMap (f storeMap)

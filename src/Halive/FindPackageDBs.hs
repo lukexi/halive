@@ -79,6 +79,6 @@ updateDynFlagsWithGlobalDB dflags = do
         `catch` (\(_e :: SomeException) -> return [])
     case xs of
         [pkgconf] -> do
-          let flgs = PackageDB (PkgConfFile pkgconf) : packageDBFlags dflags 
+          let flgs = PackageDB (PkgConfFile pkgconf) : packageDBFlags dflags
           return dflags { packageDBFlags = flgs }
         _ -> return dflags

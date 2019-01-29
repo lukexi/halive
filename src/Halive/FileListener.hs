@@ -64,15 +64,15 @@ unfoldM f = f >>= \case
 
 fileModifiedPredicate :: FilePath -> FSNotify.Event -> Bool
 fileModifiedPredicate fileName event = case event of
-    Modified path _ -> path == fileName
-    Added    path _ -> path == fileName
-    _               -> False
+    Modified path _ _ -> path == fileName
+    Added    path _ _ -> path == fileName
+    _                 -> False
 
 -- Returns True if the event filepath is a common editor file
 isACommonEditorFile :: FSNotify.Event -> Bool
 isACommonEditorFile event = case event of
-    Modified path _ -> any (`isInfixOf` path) emacsFragments
-    _               -> False
+    Modified path _ _ -> any (`isInfixOf` path) emacsFragments
+    _                 -> False
   where emacsFragments = ["#", "flymake", "flycheck"]
 
 eventListenerForFile :: MonadIO m => FilePath -> ShouldReadFile -> m FileEventListener
@@ -108,8 +108,8 @@ killFileEventListener eventListener = liftIO $ putMVar (felStopMVar eventListene
 -- or an empty list to match all
 modifiedWithExtensionPredicate :: [String] -> FSNotify.Event -> Bool
 modifiedWithExtensionPredicate fileTypes event = case event of
-    Modified path _ -> null fileTypes || drop 1 (takeExtension path) `elem` fileTypes
-    _               -> False
+    Modified path _ _ -> null fileTypes || drop 1 (takeExtension path) `elem` fileTypes
+    _                 -> False
 
 forkDirectoryListenerThread :: FilePath
                             -> [String]
