@@ -68,8 +68,8 @@ executable halive
   main-is:             HaliveMain.hs
   hs-source-dirs:      exec
   default-language:    Haskell2010
-  ghc-prof-options:    -Wall -O2 -threaded -fprof-auto
-  ghc-options:         -Wall -O2 -threaded -optP-Wno-nonportable-include-path
+  ghc-prof-options:    -dynamic -Wall -O2 -threaded -fprof-auto
+  ghc-options:         -dynamic -Wall -O2 -threaded -optP-Wno-nonportable-include-path
   -- This strangely enables "-dynamic" for all dependent libraries,
   -- so I need to comment this during profiling?!?
   -- Shouldn't ghc-prof-options override it anyway? Who knows.

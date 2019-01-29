@@ -17,7 +17,7 @@ import Halive.SubHalive
 import Halive.Recompiler
 import Halive.Args
 import System.FilePath
-    
+
 main :: IO ()
 main = do
     args <- parseArgs <$> getArgs
