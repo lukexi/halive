@@ -29,9 +29,9 @@ mightExist f = do
 
 addExtraPkgConfs :: [FilePath] -> DynFlags -> DynFlags
 addExtraPkgConfs pkgConfs dflags = dflags
-    { extraPkgConfs =
-        let newPkgConfs = map PkgConfFile pkgConfs
-        in (newPkgConfs ++) . extraPkgConfs dflags
+    { packageDBFlags =
+        let newPkgConfs = map (PackageDB . PkgConfFile) pkgConfs
+        in newPkgConfs ++ packageDBFlags dflags
     }
 
 
@@ -51,8 +51,8 @@ updateDynFlagsWithCabalSandbox dflags =
     liftIO getSandboxDb >>= \case
         Nothing -> return dflags
         Just sandboxDB -> do
-            let pkgs = map PkgConfFile [sandboxDB]
-            return dflags { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags }
+            let pkgs = map (PackageDB . PkgConfFile) [sandboxDB]
+            return dflags { packageDBFlags = pkgs ++  packageDBFlags dflags }
 
 ------------------------
 ---------- Stack project
@@ -70,13 +70,15 @@ updateDynFlagsWithStackDB dflags =
     liftIO getStackDb >>= \case
         Nothing -> return dflags
         Just stackDBs -> do
-            let pkgs = map PkgConfFile stackDBs
-            return dflags { extraPkgConfs = (pkgs ++) . extraPkgConfs dflags }
+            let pkgs = map (PackageDB . PkgConfFile) stackDBs
+            return dflags { packageDBFlags = pkgs ++ packageDBFlags dflags }
 
 updateDynFlagsWithGlobalDB :: MonadIO m => DynFlags -> m DynFlags
 updateDynFlagsWithGlobalDB dflags = do
     xs <- liftIO $ lines <$> readProcess "ghc" ["--print-global-package-db"] ""
         `catch` (\(_e :: SomeException) -> return [])
     case xs of
-        [pkgconf] -> return dflags { extraPkgConfs = (PkgConfFile pkgconf :) . extraPkgConfs dflags }
+        [pkgconf] -> do
+          let flgs = PackageDB (PkgConfFile pkgconf) : packageDBFlags dflags 
+          return dflags { packageDBFlags = flgs }
         _ -> return dflags

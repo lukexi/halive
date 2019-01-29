@@ -303,7 +303,7 @@ logHandler ref dflags severity srcSpan style msg =
 output :: (GhcMonad m, Outputable a) => a -> m ()
 output a = do
     dfs <- getSessionDynFlags
-    let style = defaultUserStyle
+    let style = defaultUserStyle dfs
     let cntx  = initSDocContext dfs style
     liftIO $ print $ runSDoc (ppr a) cntx
 
