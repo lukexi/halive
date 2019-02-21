@@ -27,7 +27,10 @@ main = do
             let mainFilePath = dropFileName mainFileName
             setEnv "Halive Active" "Yes"
             putStrLn banner
-            withArgs targetArgs $ startRecompiler (fileTypes ++ defaultFileTypes) mainFileName (mainFilePath:includeDirs)
+            withArgs targetArgs $
+                startRecompiler (fileTypes ++ defaultFileTypes) mainFileName
+                    (mainFilePath:includeDirs)
+                    shouldCompile
 
 defaultFileTypes :: [FileType]
 defaultFileTypes = ["hs", "pd", "frag", "vert"]
@@ -36,13 +39,12 @@ printBanner :: String -> IO ()
 printBanner title = putStrLn $ ribbon ++ " " ++ title ++ " " ++ ribbon
     where ribbon = replicate 25 '*'
 
-startRecompiler :: [FileType] -> FilePath -> [FilePath] -> IO b
-startRecompiler fileTypes mainFileName includeDirs = do
+startRecompiler :: [FileType] -> FilePath -> [FilePath] -> Bool -> IO b
+startRecompiler fileTypes mainFileName includeDirs shouldCompile = do
     ghc <- startGHC
         (defaultGHCSessionConfig
             { gscImportPaths = includeDirs
-            -- , gscCompilationMode = Compiled
-            , gscCompilationMode = Interpreted
+            , gscCompilationMode = if shouldCompile then Compiled else Interpreted
             })
 
     recompiler <- recompilerWithConfig ghc RecompilerConfig

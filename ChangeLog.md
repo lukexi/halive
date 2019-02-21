@@ -1,7 +1,8 @@
 # Revision history for halive
-## 0.1.5.  -- 2019-01-28
+## 0.1.5.  -- 2019-02-21
 * Updates for GHC 8.6
 * Updates for GHC 8.2 (Schell Scivally)
+* Add "-c/--compiled" flag for faster code (traded for slower recompilation)
 
 ## 0.1.4.  -- 2017-03-23
 * Remove extraneous argument from compileExpression
