@@ -1,4 +1,8 @@
 # Revision history for halive
+## 0.1.6.  -- 2019-02-21
+* Documentation updates
+* O1 instead of O2 for compiled code
+
 ## 0.1.5.  -- 2019-02-21
 * Updates for GHC 8.6
 * Updates for GHC 8.2 (Schell Scivally)

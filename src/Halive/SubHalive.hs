@@ -128,7 +128,7 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
             -- Make sure we're configured for live-reload
             >>= (\d -> pure d
                 { hscTarget   = if gscCompilationMode == Compiled then HscAsm else HscInterpreted
-                , optLevel    = if gscCompilationMode == Compiled then 2 else 0
+                , optLevel    = if gscCompilationMode == Compiled then 1 else 0
                 , ghcLink     = LinkInMemory
                 , ghcMode     = CompManager
                 , importPaths = gscImportPaths

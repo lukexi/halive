@@ -25,7 +25,7 @@ data PartialArgs = PartialArgs
     }
 
 usage :: String
-usage = "Usage: halive <main.hs> [<include dir>] [-f|--file-type <file type>] [-- <args to myapp>]\n\
+usage = "Usage: halive <main.hs> [<include dir>] [-f|--file-type <file type>] [-c|--compiled] [-- <args to myapp>]\n\
         \\n\
         \Available options:\n\
         \  -f, --file-type <file type>     Custom file type to watch for changes (e.g. \"-f html\")\n\

@@ -1,5 +1,5 @@
 name:                halive
-version:             0.1.5
+version:             0.1.6
 synopsis:            A live recompiler
 description:
   Live recompiler for Haskell
@@ -8,11 +8,12 @@ description:
   .
   /Usage:/
   .
-  > halive path/to/myfile.hs [optionally any/extra include/dirs ..] [-f|--file-type additional file type] -- [args to app]
+  > halive path/to/myfile.hs [optionally any/extra include/dirs ..] [-f|--file-type additional file type] [-c|--compiled] -- [args to app]
   .
   Available options:
   .
   @-f, --file-type <file type>@ - Custom file type to watch for changes (e.g. @-f html@)
+  @-c, --compiled@ - Use faster compiled code at the expense of recompilation speed
   .
   See <https://github.com/lukexi/halive/blob/master/README.md README>
 homepage:            https://github.com/lukexi/halive
@@ -42,8 +43,8 @@ library
     Halive.Recompiler
     Halive.FileListener
   default-language:    Haskell2010
-  ghc-prof-options:    -Wall -O2 -fprof-auto
-  ghc-options:         -Wall -O2 -optP-Wno-nonportable-include-path
+  -- ghc-prof-options:    -Wall -fprof-auto
+  ghc-options:         -Wall -optP-Wno-nonportable-include-path
   build-depends:
       base >=4.7 && <5
     , foreign-store
@@ -68,8 +69,8 @@ executable halive
   main-is:             HaliveMain.hs
   hs-source-dirs:      exec
   default-language:    Haskell2010
-  ghc-prof-options:    -dynamic -Wall -O2 -threaded -fprof-auto
-  ghc-options:         -dynamic -Wall -O2 -threaded -optP-Wno-nonportable-include-path
+  ghc-prof-options:    -static -Wall -threaded -fprof-auto
+  ghc-options:         -dynamic -Wall -threaded -optP-Wno-nonportable-include-path
   -- This strangely enables "-dynamic" for all dependent libraries,
   -- so I need to comment this during profiling?!?
   -- Shouldn't ghc-prof-options override it anyway? Who knows.
@@ -138,7 +139,7 @@ test-suite subhalive
   type:                exitcode-stdio-1.0
   main-is:             TestSubhalive.hs
   hs-source-dirs:      test
-  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N -dynamic
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -dynamic
   build-depends:       base
                      , halive
                      , mtl
@@ -153,7 +154,7 @@ test-suite compileexpr
   type:                exitcode-stdio-1.0
   main-is:             TestCompileExpr.hs
   hs-source-dirs:      test
-  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N  -dynamic
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N  -dynamic
   build-depends:       base
                      , halive
                      , mtl
@@ -169,7 +170,7 @@ test-suite testghc
   type:                exitcode-stdio-1.0
   main-is:             TestGHC.hs
   hs-source-dirs:      test
-  ghc-options:         -Wall -O2 -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
                      , time
                      , filepath

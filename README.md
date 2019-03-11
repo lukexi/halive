@@ -73,6 +73,12 @@ such as:
 
 `halive <path/to/mymain.hs> <extra-include-dirs> -- <args-to-myapp>`
 
+Compiled Code
+-------------
+You can pass `--compiled` (or `-c`) to Halive to compile to faster object code.
+
+This will be slower to recompile but faster to run.
+
 Notes
 -----
 
