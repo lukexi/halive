@@ -243,11 +243,11 @@ recompileExpressionsInFile fileName mFileContents expressions =
                 -- Get the dependencies of the main target (and update the session with them)
                 graph <- depanal [] False
 
-                #if __GLASGOW_HASKELL__ >= 804
+#if __GLASGOW_HASKELL__ >= 804
                 let modSummaries = mgModSummaries graph
-                #else
+#else
                 let modSummaries = graph
-                #endif
+#endif
 
                 -- Load the dependencies of the main target
                 setContext
