@@ -88,11 +88,11 @@ main = withGHC $ do
             -- -- We must parse and typecheck modules before they'll be available for usage
             -- forM_ graph (typecheckModule <=< parseModule)
 
-            #if __GLASGOW_HASKELL__ >= 804
+#if __GLASGOW_HASKELL__ >= 804
             let modSummaries = mgModSummaries graph
-            #else
+#else
             let modSummaries = graph
-            #endif
+#endif
 
             -- Load the dependencies of the main target
             setContext
