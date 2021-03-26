@@ -27,6 +27,8 @@ import HscTypes
 import GHC.Paths
 import Outputable
 import StringBuffer
+import PprColour
+import qualified Util
 
 -- import Packages
 import Linker
@@ -82,6 +84,7 @@ data GHCSessionConfig = GHCSessionConfig
         -- (which saves memory but slows compilation)
         -- or keeping it around for sequences of compilations
         -- (which lies in-between these)
+    , gscUseColor        :: Bool
     }
 
 defaultGHCSessionConfig :: GHCSessionConfig
@@ -97,6 +100,7 @@ defaultGHCSessionConfig = GHCSessionConfig
     , gscVerbosity = 0
     , gscMainThreadID = Nothing
     , gscKeepLibsInMemory = Always
+    , gscUseColor = False
     }
 
 -- Starts up a GHC session and then runs the given action within it
@@ -137,7 +141,11 @@ withGHCSession mainThreadID GHCSessionConfig{..} action = do
                 , stubDir     = Just ".halive"
                 , dumpDir     = Just ".halive"
                 , verbosity   = gscVerbosity
+                , useColor    = if gscUseColor then Util.Always else Util.Never
+                , canUseColor = gscUseColor
+                , colScheme   = defaultScheme
                 })
+            >>= (pure . (`gopt_set` Opt_DiagnosticsShowCaret))
             -- turn off the GHCi sandbox
             -- since it breaks OpenGL/GUI usage
             >>= (pure . (`gopt_unset` Opt_GhciSandbox))
@@ -243,11 +251,11 @@ recompileExpressionsInFile fileName mFileContents expressions =
                 -- Get the dependencies of the main target (and update the session with them)
                 graph <- depanal [] False
 
-#if __GLASGOW_HASKELL__ >= 804
+                #if __GLASGOW_HASKELL__ >= 804
                 let modSummaries = mgModSummaries graph
-#else
+                #else
                 let modSummaries = graph
-#endif
+                #endif
 
                 -- Load the dependencies of the main target
                 setContext
@@ -281,27 +289,57 @@ catchExceptions a = gcatch a
         return (Left (show _x))
         )
 
-
-
+-- Adapted from 
+-- https://hackage.haskell.org/package/ghc-8.2.1/docs/src/DynFlags.html#defaultLogAction
 logHandler :: IORef String -> LogAction
-#if __GLASGOW_HASKELL__ >= 800
-logHandler ref dflags _warnReason severity srcSpan style msg =
-#else
-logHandler ref dflags severity srcSpan style msg =
-#endif
-    case severity of
-       SevError   -> modifyIORef' ref (++ ('\n':messageWithLocation))
-       SevFatal   -> modifyIORef' ref (++ ('\n':messageWithLocation))
-       SevWarning -> modifyIORef' ref (++ ('\n':messageWithLocation))
-       _          -> do
-            putStr messageOther
-            return () -- ignore the rest
-    where cntx = initSDocContext dflags style
-          locMsg = mkLocMessage severity srcSpan msg
-          messageWithLocation = show (runSDoc locMsg cntx)
-          messageOther = show (runSDoc msg cntx)
+logHandler errorIORef dflags reason severity srcSpan style msg
+    = case severity of
+      SevOutput      -> printOut msg style
+      SevDump        -> printOut (msg $$ blankLine) style
+      SevInteractive -> putStrSDoc msg style
+      SevInfo        -> printErrs msg style
+      SevFatal       -> printErrs msg style
+      _              -> do -- otherwise (i.e. SevError or SevWarning)
+                           caretDiagnostic <-
+                               if gopt Opt_DiagnosticsShowCaret dflags
+                               then getCaretDiagnostic severity srcSpan
+                               else pure empty
+                           writeToErrorIORef (message $+$ caretDiagnostic)
+                               (setStyleColoured True style)
+                           -- careful (#2302): printErrs prints in UTF-8,
+                           -- whereas converting to string first and using
+                           -- hPutStr would just emit the low 8 bits of
+                           -- each unicode char.
+    where printOut   = writeToErrorIORef
+          printErrs  = writeToErrorIORef
+          putStrSDoc = writeToErrorIORef
+          -- Pretty print the warning flag, if any (#10752)
+          message = mkLocMessageAnn Nothing severity srcSpan msg
+          writeToErrorIORef message style = 
+            modifyIORef' errorIORef 
+                (++ ('\n':renderWithStyle dflags message style))
 
+-- logHandler :: IORef String -> LogAction
+-- #if __GLASGOW_HASKELL__ >= 800
+-- logHandler ref dflags _warnReason severity srcSpan style msg =
+-- #else
+-- logHandler ref dflags severity srcSpan style msg =
+-- #endif
+--     caretDiagnostic <- getCaretDiagnostic dflags srcSpan
+--     let cntx                = initSDocContext dflags style
+--         locMsg              = mkLocMessage severity srcSpan msg
+--         messageWithLocation = show (runSDoc locMsg cntx)
+--         messageOther        = show (runSDoc msg cntx)
+--         renderWithStyle dflags (msg $+$ caretDiagnostic) 
+--         (setStyleColoured True style)
 
+--     case severity of
+--        SevError   -> modifyIORef' ref (++ ('\n':messageWithLocation))
+--        SevFatal   -> modifyIORef' ref (++ ('\n':messageWithLocation))
+--        SevWarning -> modifyIORef' ref (++ ('\n':messageWithLocation))
+--        _          -> do
+--             putStr messageOther
+--             return () -- ignore the rest
 
 -- A helper from interactive-diagrams to print out GHC API values,
 -- useful while debugging the API.
@@ -323,8 +361,9 @@ gatherErrors :: GhcMonad m => SourceError -> m String
 gatherErrors sourceError = do
     printException sourceError
     dflags <- getSessionDynFlags
-    let errorSDocs = pprErrMsgBagWithLoc (srcErrorMessages sourceError)
-        errorStrings = map (showSDoc dflags) errorSDocs
+    let style = mkUserStyle dflags neverQualify AllTheWay
+        errorSDocs = pprErrMsgBagWithLoc (srcErrorMessages sourceError)
+        errorStrings = map (showSDocForUser dflags neverQualify) errorSDocs
     return (concat errorStrings)
 
 

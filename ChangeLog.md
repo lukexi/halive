@@ -1,4 +1,14 @@
 # Revision history for halive
+## 0.1.8.  -- 2021-03-26
+* Re-enable -dynamic to fix rogue crashes with C-linking libraries (e.g. nanovg-hs, glfw)
+* Add --compiled option
+* -c flags, fix compiling profiled
+* Fix CPP indentation (Manuel Bärenz)
+* Compatibility with sdl2-2.5.* (Manuel Bärenz)
+
+## 0.1.7.  -- 2019-03-13
+* Add colorized output
+
 ## 0.1.6.  -- 2019-02-21
 * Documentation updates
 * O1 instead of O2 for compiled code

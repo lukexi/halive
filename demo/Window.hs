@@ -19,7 +19,7 @@ createGLWindow windowName = do
         -- , InitJoystick , InitGameController
         ]
     window <- createWindow windowName defaultWindow
-        { windowGraphicsContext = OpenGLContext $ defaultOpenGL
+        { windowOpenGL = Just $ defaultOpenGL
             { glProfile = Core Normal 4 1
             }
         , windowHighDPI = True

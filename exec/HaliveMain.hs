@@ -45,6 +45,7 @@ startRecompiler fileTypes mainFileName includeDirs shouldCompile = do
         (defaultGHCSessionConfig
             { gscImportPaths = includeDirs
             , gscCompilationMode = if shouldCompile then Compiled else Interpreted
+            , gscUseColor = True
             })
 
     recompiler <- recompilerWithConfig ghc RecompilerConfig
